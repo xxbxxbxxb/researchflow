@@ -21,3 +21,5 @@ dist/
 # IDE
 .vscode/
 .idea/
+
+.lh/
