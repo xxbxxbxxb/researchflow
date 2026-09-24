@@ -2,6 +2,7 @@ import asyncio
 
 import httpx
 import pytest
+import json
 
 from researchflow.infrastructure.llm.openai_compatible import (
     LLMProviderError,
@@ -29,6 +30,15 @@ def test_generate_maps_provider_response() ->None:
             request.headers["Authorization"]
             == "Bearer test-key"
         )
+        body = json.loads(request.content)
+        
+        assert body["model"] == "test-model"
+        assert body["messages"] == [
+            {
+                "role": "user",
+                "content": "question",
+            }
+        ]
         return httpx.Response(
             200,
             json={
@@ -90,3 +100,95 @@ def test_generate_translates_http_error() -> None:
                 )
 
     asyncio.run(scenario())
+
+def test_generate_rejects_invalid_provider_response() -> None:
+    async def handler(
+        request: httpx.Request,
+    ) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "unexpected":"response",
+            },
+        )
+    async def scenario() -> None:
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(
+            transport=transport,
+            timeout=5.0,
+        ) as client:
+            llm = OpenAICompatibleLLM(
+                client=client,
+                config=make_config(),
+            )
+            with pytest.raises(
+                LLMProviderError,
+                match="invalid response"
+            ):
+                await llm.generate(
+                    LLMRequest(prompt="question")
+                )
+        asyncio.run(scenario())
+
+def test_generate_rejects_empty_content() -> None:
+    async def handler(
+        request: httpx.Request,
+    ) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices":[
+                    {
+                        "message":{
+                            "cotent": ""
+                        }
+                    }
+                ]
+            },
+        )
+    async def scenario() -> None:
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(
+            transport=transport,
+            timeout=5.0,
+        ) as client:
+            llm = OpenAICompatibleLLM(
+                client=client,
+                config=make_config(),
+            )
+            with pytest.raises(
+                LLMProviderError,
+                match="empty content"
+            ):
+                await llm.generate(
+                    LLMRequest(prompt="question")
+                )
+        asyncio.run(scenario())
+def test_generate_rejects_empty_choice() -> None:
+    async def handler(
+        request: httpx.Request,
+    ) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices":[]
+            },
+        )
+    async def scenario() -> None:
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(
+            transport=transport,
+            timeout=5.0,
+        ) as client:
+            llm = OpenAICompatibleLLM(
+                client=client,
+                config=make_config(),
+            )
+            with pytest.raises(
+                LLMProviderError,
+                match="empty content"
+            ):
+                await llm.generate(
+                    LLMRequest(prompt="question")
+                )
+        asyncio.run(scenario())
