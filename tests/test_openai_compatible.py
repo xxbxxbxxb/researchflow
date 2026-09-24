@@ -128,7 +128,7 @@ def test_generate_rejects_invalid_provider_response() -> None:
                 await llm.generate(
                     LLMRequest(prompt="question")
                 )
-        asyncio.run(scenario())
+    asyncio.run(scenario())
 
 def test_generate_rejects_empty_content() -> None:
     async def handler(
@@ -140,7 +140,7 @@ def test_generate_rejects_empty_content() -> None:
                 "choices":[
                     {
                         "message":{
-                            "cotent": ""
+                            "content": ""
                         }
                     }
                 ]
@@ -163,7 +163,7 @@ def test_generate_rejects_empty_content() -> None:
                 await llm.generate(
                     LLMRequest(prompt="question")
                 )
-        asyncio.run(scenario())
+    asyncio.run(scenario())
 def test_generate_rejects_empty_choice() -> None:
     async def handler(
         request: httpx.Request,
@@ -186,9 +186,9 @@ def test_generate_rejects_empty_choice() -> None:
             )
             with pytest.raises(
                 LLMProviderError,
-                match="empty content"
+                match="invalid response"
             ):
                 await llm.generate(
                     LLMRequest(prompt="question")
                 )
-        asyncio.run(scenario())
+    asyncio.run(scenario())
