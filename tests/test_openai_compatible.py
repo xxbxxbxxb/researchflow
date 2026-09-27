@@ -5,10 +5,12 @@ import pytest
 import json
 
 from researchflow.infrastructure.llm.openai_compatible import (
-    LLMProviderError,
-    LLMProviderUnavailableError,
     OpenAICompatibleConfig,
     OpenAICompatibleLLM
+)
+from researchflow.infrastructure.llm.errors import (
+    LLMProviderError,
+    LLMProviderUnavailableError,
 )
 from researchflow.ports.llm import LLMRequest
 

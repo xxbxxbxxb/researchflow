@@ -2,7 +2,7 @@ class LLMProviderError(RuntimeError):
     """Base error for failures at the LLM provider boundary."""
     
 class LLMProviderRequestError(LLMProviderError):
-    """The request os omva;od pr cannot be authorized."""
+    """The request is invalid or cannot be authorized."""
 
 class LLMProviderRateLimitError(LLMProviderError):
     """The provider rejected the request because of rate limiting."""

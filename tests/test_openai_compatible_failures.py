@@ -101,3 +101,67 @@ def test_generate_classifies_timeout_as_unavailable() -> None:
                 )
 
     asyncio.run(scenario())
+def test_generate_classifies_connect_timeout_as_unavailable() -> None:
+    async def handler(
+        request: httpx.Request,
+    ) -> httpx.Response:
+        raise httpx.ConnectTimeout(
+            "simulated connect timeout",
+            request=request,
+        )
+
+    async def scenario() -> None:
+        transport = httpx.MockTransport(handler)
+
+        async with httpx.AsyncClient(
+            transport=transport,
+            timeout=5.0,
+        ) as client:
+            llm = OpenAICompatibleLLM(
+                client=client,
+                config=make_config(),
+            )
+
+            with pytest.raises(
+                LLMProviderUnavailableError
+            ):
+                await llm.generate(
+                    LLMRequest(
+                        prompt="question"
+                    )
+                )
+
+    asyncio.run(scenario())
+def test_malformed_response_is_protocol_error() -> None:
+    async def handler(
+        request: httpx.Request,
+    ) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "unexpected":"response"
+            },
+        )
+
+    async def scenario() -> None:
+        transport = httpx.MockTransport(handler)
+
+        async with httpx.AsyncClient(
+            transport=transport,
+            timeout=5.0,
+        ) as client:
+            llm = OpenAICompatibleLLM(
+                client=client,
+                config=make_config(),
+            )
+
+            with pytest.raises(
+                LLMProviderProtocolError
+            ):
+                await llm.generate(
+                    LLMRequest(
+                        prompt="question"
+                    )
+                )
+
+    asyncio.run(scenario())
