@@ -14,6 +14,12 @@ from researchflow.infrastructure.llm.openai_compatible import (
     OpenAICompatibleLLM,
 )
 from researchflow.ports.llm import LLMRequest
+def make_config() ->OpenAICompatibleConfig:
+    return OpenAICompatibleConfig(
+        base_url="https://llm.example/v1",
+        api_key="test-key",
+        model="test-model"
+    )
 @pytest.mark.parametrize(
     ("status_code","expected_error"),
     [

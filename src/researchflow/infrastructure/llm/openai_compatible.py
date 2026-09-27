@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import httpx
 
 from researchflow.infrastructure.llm.errors import(
+    LLMProviderError,
     LLMProviderProtocolError,
     LLMProviderRateLimitError,
     LLMProviderRequestError,
@@ -16,8 +17,6 @@ class OpenAICompatibleConfig:
     api_key: str
     model: str
 
-class LLMProviderError(RuntimeError):
-    pass
 
 class OpenAICompatibleLLM:
     def __init__(self, client: httpx.AsyncClient, config: OpenAICompatibleConfig) -> None:
@@ -50,7 +49,6 @@ class OpenAICompatibleLLM:
                 },
             )
             
-            response.raise_for_status()
         except httpx.TimeoutException as exc:
             raise LLMProviderUnavailableError(
                 "LLM provider request time out"
@@ -97,11 +95,11 @@ class OpenAICompatibleLLM:
             TypeError,
             ValueError,
         ) as exc:
-            raise LLMProviderError(
+            raise LLMProviderProtocolError(
                 "LLM provider returned an invalid response"
             ) from exc
         if not isinstance(text, str) or not text.strip():
-            raise LLMProviderError(
+            raise LLMProviderProtocolError(
                 "LLM provider returned empty content"
             )
         return LLMResponse(text=text)

@@ -6,6 +6,7 @@ import json
 
 from researchflow.infrastructure.llm.openai_compatible import (
     LLMProviderError,
+    LLMProviderUnavailableError,
     OpenAICompatibleConfig,
     OpenAICompatibleLLM
 )
@@ -70,7 +71,7 @@ def test_generate_maps_provider_response() ->None:
             assert response.text == "grounded answer"
 
     asyncio.run(scenario())
-def test_generate_translates_http_error() -> None:
+def test_generate_translates_503_to_unavailable_error() -> None:
     async def handler(
         request: httpx.Request,
     ) -> httpx.Response:
@@ -92,8 +93,8 @@ def test_generate_translates_http_error() -> None:
             )
 
             with pytest.raises(
-                LLMProviderError,
-                match="request failed",
+                LLMProviderUnavailableError,
+                match="unavailable",
             ):
                 await llm.generate(
                     LLMRequest(prompt="question")
