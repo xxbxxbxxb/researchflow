@@ -2,6 +2,12 @@ from dataclasses import dataclass
 
 import httpx
 
+from researchflow.infrastructure.llm.errors import(
+    LLMProviderProtocolError,
+    LLMProviderRateLimitError,
+    LLMProviderRequestError,
+    LLMProviderUnavailableError,
+)
 from researchflow.ports.llm import LLMRequest,LLMResponse
 
 @dataclass(frozen=True)
@@ -45,9 +51,40 @@ class OpenAICompatibleLLM:
             )
             
             response.raise_for_status()
-        except httpx.HTTPError as exc:
-            raise LLMProviderError(
-                "LLM provider request failed"
+        except httpx.TimeoutException as exc:
+            raise LLMProviderUnavailableError(
+                "LLM provider request time out"
+            ) from exc
+        except httpx.TransportError as exc:
+            raise LLMProviderUnavailableError(
+                "LLM provider request transport failed"
+            ) from exc
+        if response.status_code in {
+            400,
+            401,
+            403,
+            404,
+            422,
+        }:
+            raise LLMProviderRequestError(
+                f"LLM provider rejected request:"
+                f"{response.status_code}"
+            )
+        if response.status_code == 429:
+            raise LLMProviderRateLimitError(
+                "LLM provider rate limited the request"
+            )
+        if 500 <= response.status_code <= 599:
+            raise LLMProviderUnavailableError(
+                f"LLM provider unavailable:"
+                f"{response.status_code}"
+            )
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise LLMProviderRequestError(
+                f"LLM provider returned unexpected status:"
+                f"{response.status_code}"
             ) from exc
         
         try:
