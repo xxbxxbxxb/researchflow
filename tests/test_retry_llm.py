@@ -2,6 +2,7 @@ import asyncio
 import pytest
 
 from researchflow.infrastructure.llm.errors import(
+    LLMProviderRateLimitError,
     LLMProviderProtocolError,
     LLMProviderRequestError,
     LLMProviderUnavailableError,
@@ -122,3 +123,38 @@ def test_does_not_retry_protocol_error() -> None:
         )
         assert delegate.calls == 1
     asyncio.run(scenario())
+def test_retries_rate_limit_error_then_succeeds() -> None:
+    async def scenario() ->None:
+        delegate = SequencedLLM(
+            [
+                LLMProviderRateLimitError(
+                    "rate limited"
+                ),
+                LLMResponse(
+                    text="recovered"
+                ),
+            ]
+        )
+        llm = RetryLLM(
+            delegate=delegate,
+            max_attempts=3,
+        )
+        response = await llm.generate(
+            LLMRequest(
+                prompt="question"
+            )
+        )
+        assert response.text == "recovered"
+        assert delegate.calls == 2
+    asyncio.run(scenario())
+def test_rejects_zero_max_attempts() ->None:
+    delegate = SequencedLLM([])
+    
+    with pytest.raises(
+        ValueError,
+        match="max_attempts must be at least 1",
+    ):
+        RetryLLM(
+            delegate=delegate,
+            max_attempts=0,
+        )
