@@ -55,6 +55,7 @@ def test_retries_unavailable_error_then_succeeds() ->None:
         llm = RetryLLM(
             delegate = delegate,
             max_attempts = 3,
+            base_delay_seconds=0,
         )
         response = await llm.generate(
             LLMRequest(prompt="question")
@@ -80,6 +81,7 @@ def test_stops_after_max_attempts() -> None:
         llm = RetryLLM(
             delegate = delegate,
             max_attempts = 3,
+            base_delay_seconds=0,
         )
         with pytest.raises(
             LLMProviderUnavailableError
@@ -146,6 +148,7 @@ def test_retries_rate_limit_error_then_succeeds() -> None:
         llm = RetryLLM(
             delegate=delegate,
             max_attempts=3,
+            base_delay_seconds=0,
         )
         response = await llm.generate(
             LLMRequest(
@@ -253,3 +256,59 @@ def test_rejects_negative_base_delay() -> None:
             delegate=delegate,
             base_delay_seconds=-0.1,
         )
+def test_backoff_grows_for_four_attempts() -> None:
+    async def scenario() -> None:
+        delegate = SequencedLLM(
+            [
+                LLMProviderUnavailableError("failure 1"),
+                LLMProviderUnavailableError("failure 2"),
+                LLMProviderUnavailableError("failure 3"),
+                LLMResponse(text="recovered"),
+            ]
+        )
+        sleeper = RecordingSleeper()
+
+        llm = RetryLLM(
+            delegate=delegate,
+            max_attempts=4,
+            base_delay_seconds=1.0,
+            sleeper=sleeper,
+        )
+
+        response = await llm.generate(
+            LLMRequest(prompt="question")
+        )
+
+        assert response.text == "recovered"
+        assert delegate.calls == 4
+        assert sleeper.delays == [1.0, 2.0, 4.0]
+
+    asyncio.run(scenario())
+def test_request_error_does_not_backoff() -> None:
+    async def scenario() -> None:
+        delegate = SequencedLLM(
+            [
+                LLMProviderRequestError(
+                    "invalid request"
+                )
+            ]
+        )
+        sleeper = RecordingSleeper()
+
+        llm = RetryLLM(
+            delegate=delegate,
+            max_attempts=3,
+            sleeper=sleeper,
+        )
+
+        with pytest.raises(
+            LLMProviderRequestError
+        ):
+            await llm.generate(
+                LLMRequest(prompt="question")
+            )
+
+        assert delegate.calls == 1
+        assert sleeper.delays == []
+
+    asyncio.run(scenario())
