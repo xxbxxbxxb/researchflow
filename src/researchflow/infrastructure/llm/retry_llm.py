@@ -1,3 +1,5 @@
+from collections.abc import Callable,Awaitable
+import asyncio
 from researchflow.infrastructure.llm.errors import (
     LLMProviderRateLimitError,
     LLMProviderUnavailableError,
@@ -12,19 +14,30 @@ RETRYABLE_ERRORS = (
     LLMProviderRateLimitError,
     LLMProviderUnavailableError,
 )
-
+Sleeper = Callable[
+    [float],
+    Awaitable[None],
+]
 class RetryLLM:
     def __init__(
         self,
         delegate: LLMPort,
         max_attempts: int = 3,
+        base_delay_seconds: float = 0.5,
+        sleeper: Sleeper = asyncio.sleep,
     ) -> None:
         if max_attempts < 1:
             raise ValueError(
                 "max_attempts must be at least 1"
             )
+        if base_delay_seconds < 0:
+            raise ValueError(
+                "base_delay_seconds must be non-negative"
+            )
         self._delegate = delegate
         self._max_attempts = max_attempts
+        self._base_delay_seconds = base_delay_seconds
+        self._sleeper = sleeper
     async def generate(
         self,
         request: LLMRequest,
@@ -40,6 +53,12 @@ class RetryLLM:
             except RETRYABLE_ERRORS:
                 if attempt == self._max_attempts:
                     raise
+                delay = (
+                    self._base_delay_seconds
+                    * (2 ** (attempt - 1))
+                )
+
+                await self._sleeper(delay)
         raise RuntimeError(
             "unreachable retry state"
         )
