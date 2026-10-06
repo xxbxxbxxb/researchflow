@@ -1,5 +1,6 @@
 from collections.abc import Callable,Awaitable
 import asyncio
+import random
 from researchflow.infrastructure.llm.errors import (
     LLMProviderRateLimitError,
     LLMProviderUnavailableError,
@@ -18,6 +19,10 @@ Sleeper = Callable[
     [float],
     Awaitable[None],
 ]
+Randomizer = Callable[
+    [float, float],
+    float,
+]
 class RetryLLM:
     def __init__(
         self,
@@ -25,6 +30,7 @@ class RetryLLM:
         max_attempts: int = 3,
         base_delay_seconds: float = 0.5,
         sleeper: Sleeper = asyncio.sleep,
+        randomizer: Randomizer = random.uniform,
     ) -> None:
         if max_attempts < 1:
             raise ValueError(
@@ -38,6 +44,7 @@ class RetryLLM:
         self._max_attempts = max_attempts
         self._base_delay_seconds = base_delay_seconds
         self._sleeper = sleeper
+        self._randomizer = randomizer
     async def generate(
         self,
         request: LLMRequest,
@@ -53,9 +60,13 @@ class RetryLLM:
             except RETRYABLE_ERRORS:
                 if attempt == self._max_attempts:
                     raise
-                delay = (
+                backoff_cap = (
                     self._base_delay_seconds
                     * (2 ** (attempt - 1))
+                )
+                delay = self._randomizer(
+                    0.0,
+                    backoff_cap,
                 )
 
                 await self._sleeper(delay)

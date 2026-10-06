@@ -312,3 +312,129 @@ def test_request_error_does_not_backoff() -> None:
         assert sleeper.delays == []
 
     asyncio.run(scenario())
+class FixedRandomizer:
+    def __init__(
+        self,
+        values: list[float],
+    ) -> None:
+        self._values = values
+        self.calls: list[
+            tuple[float, float]
+        ] = []
+
+    def __call__(
+        self,
+        lower: float,
+        upper: float,
+    ) -> float:
+        self.calls.append(
+            (lower, upper)
+        )
+
+        index = len(self.calls) - 1
+        return self._values[index]
+def test_uses_full_jitter_for_backoff() -> None:
+    async def scenario() -> None:
+        delegate = SequencedLLM(
+            [
+                LLMProviderUnavailableError(
+                    "failure 1"
+                ),
+                LLMProviderUnavailableError(
+                    "failure 2"
+                ),
+                LLMResponse(
+                    text="recovered"
+                ),
+            ]
+        )
+
+        sleeper = RecordingSleeper()
+
+        randomizer = FixedRandomizer(
+            [
+                0.2,
+                0.7,
+            ]
+        )
+
+        llm = RetryLLM(
+            delegate=delegate,
+            max_attempts=3,
+            base_delay_seconds=0.5,
+            sleeper=sleeper,
+            randomizer=randomizer,
+        )
+
+        response = await llm.generate(
+            LLMRequest(
+                prompt="question"
+            )
+        )
+
+        assert response.text == "recovered"
+
+        assert randomizer.calls == [
+            (0.0, 0.5),
+            (0.0, 1.0),
+        ]
+
+        assert sleeper.delays == [
+            0.2,
+            0.7,
+        ]
+
+    asyncio.run(scenario())
+def test_does_not_randomize_after_final_attempt() -> None:
+    async def scenario() -> None:
+        delegate = SequencedLLM(
+            [
+                LLMProviderUnavailableError(
+                    "failure 1"
+                ),
+                LLMProviderUnavailableError(
+                    "failure 2"
+                ),
+                LLMProviderUnavailableError(
+                    "failure 3"
+                ),
+            ]
+        )
+
+        sleeper = RecordingSleeper()
+
+        randomizer = FixedRandomizer(
+            [
+                0.1,
+                0.4,
+            ]
+        )
+
+        llm = RetryLLM(
+            delegate=delegate,
+            max_attempts=3,
+            base_delay_seconds=0.5,
+            sleeper=sleeper,
+            randomizer=randomizer,
+        )
+
+        with pytest.raises(
+            LLMProviderUnavailableError
+        ):
+            await llm.generate(
+                LLMRequest(
+                    prompt="question"
+                )
+            )
+
+        assert randomizer.calls == [
+            (0.0, 0.5),
+            (0.0, 1.0),
+        ]
+
+        assert sleeper.delays == [
+            0.1,
+            0.4,
+        ]
+
+    asyncio.run(scenario())
