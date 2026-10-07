@@ -417,3 +417,45 @@ def test_does_not_randomize_after_final_attempt() -> None:
         ]
 
     asyncio.run(scenario())
+def test_rate_limit_uses_retry_after() -> None:
+    async def scenario() -> None:
+        delegate = SequencedLLM(
+            [
+                LLMProviderRateLimitError(
+                    "rate limited",
+                    retry_after_seconds=5.0,
+                ),
+                LLMResponse(
+                    text="recovered"
+                ),
+            ]
+        )
+
+        sleeper = RecordingSleeper()
+
+        randomizer = FixedRandomizer([])
+
+        llm = RetryLLM(
+            delegate=delegate,
+            max_attempts=3,
+            base_delay_seconds=0.5,
+            sleeper=sleeper,
+            randomizer=randomizer,
+        )
+
+        response = await llm.generate(
+            LLMRequest(
+                prompt="question"
+            )
+        )
+
+        assert response.text == "recovered"
+        assert delegate.calls == 2
+
+        assert randomizer.calls == []
+
+        assert sleeper.delays == [
+            5.0,
+        ]
+
+    asyncio.run(scenario())

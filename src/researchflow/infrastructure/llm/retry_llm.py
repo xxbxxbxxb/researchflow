@@ -57,18 +57,30 @@ class RetryLLM:
                 return await self._delegate.generate(
                     request
                 )
-            except RETRYABLE_ERRORS:
+            except RETRYABLE_ERRORS as exc:
                 if attempt == self._max_attempts:
                     raise
-                backoff_cap = (
-                    self._base_delay_seconds
-                    * (2 ** (attempt - 1))
-                )
-                delay = self._randomizer(
-                    0.0,
-                    backoff_cap,
-                )
-
+                
+                if (
+                    isinstance(
+                        exc,
+                        LLMProviderRateLimitError,
+                    )
+                    and exc.retry_after_seconds is not None
+                ):
+                    delay = exc.retry_after_seconds
+            
+                else:
+                    backoff_cap = (
+                        self._base_delay_seconds
+                        * (2 ** (attempt - 1))
+                    )
+            
+                    delay = self._randomizer(
+                        0.0,
+                        backoff_cap,
+                    )
+            
                 await self._sleeper(delay)
         raise RuntimeError(
             "unreachable retry state"

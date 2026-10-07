@@ -165,3 +165,46 @@ def test_malformed_response_is_protocol_error() -> None:
                 )
 
     asyncio.run(scenario())
+def test_rate_limit_preserves_retry_after() -> None:
+    async def handler(
+        request: httpx.Request,
+    ) -> httpx.Response:
+        return httpx.Response(
+            429,
+            headers={
+                "Retry-After": "5",
+            },
+            json={
+                "error": "rate limited",
+            },
+        )
+
+    async def scenario() -> None:
+        transport = httpx.MockTransport(
+            handler
+        )
+
+        async with httpx.AsyncClient(
+            transport=transport,
+            timeout=5.0,
+        ) as client:
+            llm = OpenAICompatibleLLM(
+                client=client,
+                config=make_config(),
+            )
+
+            with pytest.raises(
+                LLMProviderRateLimitError
+            ) as exc_info:
+                await llm.generate(
+                    LLMRequest(
+                        prompt="question"
+                    )
+                )
+
+            assert (
+                exc_info.value.retry_after_seconds
+                == 5.0
+            )
+
+    asyncio.run(scenario())

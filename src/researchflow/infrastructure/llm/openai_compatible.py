@@ -69,8 +69,28 @@ class OpenAICompatibleLLM:
                 f"{response.status_code}"
             )
         if response.status_code == 429:
+
+            retry_after_seconds: float | None = None
+            retry_after = response.headers.get(
+                "Retry-After"
+            )
+        
+            if retry_after is not None:
+                try:
+                    parsed_retry_after = float(
+                        retry_after
+                    )
+                except ValueError:
+                    pass
+                else:
+                    if parsed_retry_after >= 0:
+                        retry_after_seconds = (
+                            parsed_retry_after
+                        )
+        
             raise LLMProviderRateLimitError(
-                "LLM provider rate limited the request"
+                "LLM provider rate limited the request",
+                retry_after_seconds=retry_after_seconds,
             )
         if 500 <= response.status_code <= 599:
             raise LLMProviderUnavailableError(
