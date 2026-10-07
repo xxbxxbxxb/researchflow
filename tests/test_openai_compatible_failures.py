@@ -208,3 +208,46 @@ def test_rate_limit_preserves_retry_after() -> None:
             )
 
     asyncio.run(scenario())
+def test_rate_limit_invalid_retry_after() -> None:
+    async def handler(
+        request: httpx.Request,
+    ) -> httpx.Response:
+        return httpx.Response(
+            429,
+            headers={
+                "Retry-After": "invalid",
+            },
+            json={
+                "error": "rate limited",
+            },
+        )
+
+    async def scenario() -> None:
+        transport = httpx.MockTransport(
+            handler
+        )
+
+        async with httpx.AsyncClient(
+            transport=transport,
+            timeout=5.0,
+        ) as client:
+            llm = OpenAICompatibleLLM(
+                client=client,
+                config=make_config(),
+            )
+
+            with pytest.raises(
+                LLMProviderRateLimitError
+            ) as exc_info:
+                await llm.generate(
+                    LLMRequest(
+                        prompt="question"
+                    )
+                )
+
+            assert (
+                exc_info.value.retry_after_seconds
+                is None
+            )
+
+    asyncio.run(scenario())
