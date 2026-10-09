@@ -23,3 +23,6 @@ dist/
 .idea/
 
 .lh/
+
+.graphflow-cache
+graphflow-out
