@@ -2,9 +2,8 @@ import asyncio
 
 import pytest
 
-from researchflow.infrastructure.llm.fake_llm import (
-    FakeLLM,
-)
+
+
 from researchflow.infrastructure.llm.deadline_llm import (
     DeadlineLLM,
 )
@@ -90,28 +89,56 @@ def test_new_generate_gets_fresh_budget() -> None:
         assert delegate.calls == 2
 
     asyncio.run(scenario())
+
 def test_cancel_generate_task() -> None:
+
+    class CancellableLLM:
+        def __init__(self) -> None:
+            self.started = asyncio.Event()
+            self.cancelled = False
+
+        async def generate(
+            self,
+            request: LLMRequest,
+        ) -> LLMResponse:
+            self.started.set()
+
+            try:
+                await asyncio.Event().wait()
+
+            except asyncio.CancelledError:
+                self.cancelled = True
+                raise
+
+            raise AssertionError("unreachable")
+
     async def scenario() -> None:
-        delegate = FakeLLM("abcc")
+        delegate = CancellableLLM()
 
         llm = DeadlineLLM(
             delegate=delegate,
-            timeout_seconds=10,
+            timeout_seconds=10.0,
         )
-        
 
-        task =  asyncio.create_task(llm.generate(
-                LLMRequest(
-                    prompt="question"
-                )
+        task = asyncio.create_task(
+            llm.generate(
+                LLMRequest(prompt="question")
             )
         )
 
+        # 等待底层 LLM 真正开始执行
+        await asyncio.wait_for(
+            delegate.started.wait(),
+            timeout=1.0,
+        )
+
+        # 此时再从外部取消 Task
         task.cancel()
 
-        with pytest.raises(
-            asyncio.CancelledError
-        ):
+        with pytest.raises(asyncio.CancelledError):
             await task
+
+        assert delegate.cancelled is True
+        assert task.cancelled() is True
 
     asyncio.run(scenario())
