@@ -119,8 +119,8 @@ def test_input_list_changes_do_not_change_task() -> None:
     assert len(task.evidences) == 1
     assert isinstance(task.evidences, tuple)
     
-def test_rejects_excceed_evidences_input() -> None:
-    items = [sample_input()]*21
+def test_rejects_exceed_evidences_input() -> None:
+    items = [sample_input() for _ in range(21)]
     with pytest.raises(
         ValueError,
         match="at most 20 evidence items",
