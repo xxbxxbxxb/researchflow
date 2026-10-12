@@ -134,3 +134,15 @@ def test_rejects_empty_evidence_before_llm_call() -> None:
         )
 
     assert llm.last_request is None
+def test_rejects_mixed_valid_and_invalid_citations() -> None:
+    llm = FakeLLM(
+        "结论 A [E1]，结论 B [E99]。"
+    )
+
+    with pytest.raises(
+        InvalidGroundedAnswerError,
+        match="unknown evidence citation: E99",
+    ):
+        asyncio.run(
+            AnswerResearchTask(llm).execute(sample_task())
+        )
