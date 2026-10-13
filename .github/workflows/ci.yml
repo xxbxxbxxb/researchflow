@@ -44,5 +44,5 @@ jobs:
       - run: npm --prefix web run build
       - run: npx --prefix web playwright install --with-deps chromium
       - run: npm --prefix web run test:e2e
-      - if: failure()
+      - if: always()
         run: python scripts/e2e_diagnostics.py

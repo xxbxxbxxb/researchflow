@@ -37,3 +37,18 @@ test('invalid citations fail visibly and never acquire a verified conclusion', a
   await expect(page.getByRole('link', { name: '查看报告' })).toHaveCount(0);
   await expect(page.getByText('材料支持', { exact: true })).toHaveCount(0);
 });
+
+
+test('the narrow workspace preserves the real evidence path without horizontal overflow', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await login(page);
+  await createProject(page);
+  await uploadPDF(page);
+  await startResearch(page);
+  await expect(page.getByText('研究已完成', { exact: true })).toBeVisible();
+  await page.getByRole('link', { name: '查看报告' }).first().click();
+  await page.getByRole('button', { name: '查看原文' }).first().click();
+  await expect(page.getByTestId('evidence-quote')).toContainText('sample size of 12');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.screenshot({ path: '../artifacts/qa-mobile.png' });
+});
