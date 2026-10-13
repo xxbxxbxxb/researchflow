@@ -1,10 +1,11 @@
-from typing import Literal
-from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
-from typing import Any
-from researchflow.domain.sources import AnchoredEvidence,SourceSnapshot
-from researchflow.domain.claims import Claim,Verification
+from typing import Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from researchflow.domain.claims import Claim, Verification
 from researchflow.domain.knowledge import KnowledgeEntry
+from researchflow.domain.sources import AnchoredEvidence, SourceSnapshot
 
 
 class StrictInput(BaseModel):

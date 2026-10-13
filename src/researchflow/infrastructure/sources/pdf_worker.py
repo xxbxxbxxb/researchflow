@@ -8,7 +8,7 @@ def main() -> None:
         import resource
         resource.setrlimit(resource.RLIMIT_AS, (512 * 1024 * 1024, 512 * 1024 * 1024))
         resource.setrlimit(resource.RLIMIT_CPU, (20, 20))
-    from researchflow.infrastructure.sources.parsers import DocumentParser, MAX_BYTES
+    from researchflow.infrastructure.sources.parsers import MAX_BYTES, DocumentParser
     try:
         result = asdict(DocumentParser().parse(sys.stdin.buffer.read(MAX_BYTES + 1), 'application/pdf'))
     except ValueError as exc:

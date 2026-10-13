@@ -4,23 +4,35 @@ from datetime import timedelta
 from typing import Any, cast
 from uuid import uuid4
 
-from sqlalchemy import select, func, delete
+from sqlalchemy import delete, func, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from researchflow.application.claims import CLAIM_PROMPT_VERSION
-from researchflow.domain.runs import RunHandle, RunRecord, RunState, StepOutput, StepReceipt, LeaseState
+from researchflow.application.retrieval import chunk_snapshot
 from researchflow.domain.errors import ProjectBoundaryError
+from researchflow.domain.runs import LeaseState, ReviewDecision, RunHandle, RunRecord, RunState, StepOutput, StepReceipt
+from researchflow.domain.tool_calls import ToolResult
 from researchflow.infrastructure.storage.codec import decode_dataclass, jsonable
 from researchflow.infrastructure.storage.database import Database
-from researchflow.infrastructure.storage.models import RunRow, StepRow, EventRow, TaskRow, ClaimRow, SnapshotRow, ProjectRow, IdempotencyRow, ReviewRow, BudgetRow, OperationSlotRow
+from researchflow.infrastructure.storage.models import (
+    BudgetRow,
+    ChunkRow,
+    ClaimRow,
+    EventRow,
+    FollowUpRow,
+    IdempotencyRow,
+    OperationSlotRow,
+    ProjectRow,
+    ReviewRow,
+    RunRow,
+    SnapshotRow,
+    StepRow,
+    TaskRow,
+    ToolRow,
+)
 from researchflow.infrastructure.storage.repositories import ResearchRepository
-from researchflow.ports.runtime import RunOwnershipLostError, RunCancelledError, InputVersionMismatchError
-from researchflow.domain.runs import ReviewDecision
-from researchflow.domain.tool_calls import ToolResult
-from researchflow.infrastructure.storage.models import ToolRow, FollowUpRow
-from researchflow.application.retrieval import chunk_snapshot
-from researchflow.infrastructure.storage.models import ChunkRow
-from sqlalchemy.dialects.postgresql import insert
+from researchflow.ports.runtime import InputVersionMismatchError, RunCancelledError, RunOwnershipLostError
 
 
 class RunRepository:
@@ -124,6 +136,7 @@ class RunRepository:
                 RunRow.state=='running',RunRow.lease_until <= func.clock_timestamp()
             ).order_by(RunRow.created_at).with_for_update(skip_locked=True).limit(100))).all()
             for row in rows:
+                assert row.lease_until is not None
                 now = await self.now(session)
                 budget = await session.get(BudgetRow,(row.project_id,row.run_id))
                 if budget is not None and budget.active:

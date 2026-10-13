@@ -1,4 +1,5 @@
-from researchflow.ports.llm import LLMRequest,LLMResponse
+from researchflow.ports.llm import LLMRequest, LLMResponse
+
 
 class FakeLLM:
     def __init__(self,response_text: str) ->None:

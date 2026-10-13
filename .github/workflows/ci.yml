@@ -9,6 +9,30 @@ concurrency:
 permissions:
   contents: read
 jobs:
+  core:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.11', '3.12']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: {persist-credentials: false}
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with: {python-version: '${{ matrix.python }}'}
+      - run: python -m pip install uv==0.12.23
+      - run: uv sync --locked --extra dev --python ${{ matrix.python }}
+      - run: uv run pytest -q --junitxml=artifacts/python-core.xml
+      - run: uv run ruff check .
+      - run: uv run mypy src/researchflow
+      - run: uv run researchflow demo --case supported --format json
+      - run: uv run researchflow evaluate --split development --mode contract --output artifacts/evaluation
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: core-${{ matrix.os }}-${{ matrix.python }}
+          path: artifacts/
   postgres:
     runs-on: ubuntu-latest
     services:
@@ -25,24 +49,45 @@ jobs:
     env:
       RF_TEST_DATABASE_URL: postgresql+psycopg://researchflow:researchflow@localhost:5432/researchflow_test
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
-        with:
-          python-version: '3.11'
-      - run: python -m pip install -e '.[dev]'
-      - run: python -m pytest -q
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: '24'
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: {persist-credentials: false}
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with: {python-version: '3.11'}
+      - run: python -m pip install uv==0.12.23
+      - run: uv sync --locked --extra dev --python 3.11
+      - run: uv run pytest -q --junitxml=artifacts/python.xml
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with: {node-version: '22'}
       - run: npm --prefix web ci
-      - run: python scripts/export_openapi.py
+      - run: uv run python scripts/export_openapi.py
       - run: npm --prefix web run generate:api
       - run: git diff --exit-code -- web/src/lib/generated.ts
       - run: npm --prefix web run typecheck
       - run: npm --prefix web run build
       - run: npx --prefix web playwright install --with-deps chromium
-      - run: npm --prefix web run test:e2e
+      - run: uv run npm --prefix web run test:e2e
+      - run: uv run python scripts/verify_release.py --existing-results --output artifacts/verification
       - if: always()
-        run: python scripts/e2e_diagnostics.py
+        run: uv run python scripts/e2e_diagnostics.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: real-postgres-and-browser
+          path: |
+            artifacts/
+            web/test-results/
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: {persist-credentials: false}
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with: {python-version: '3.12'}
+      - run: python -m pip install uv==0.12.23
+      - run: uv sync --locked --extra dev --python 3.12
+      - run: uv run python scripts/compose_smoke.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: compose-restart
+          path: artifacts/compose-smoke.json

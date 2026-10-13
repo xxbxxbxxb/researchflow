@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Literal,Protocol,ContextManager
+from typing import ContextManager, Literal, Protocol
 
 Scalar=str|int|float|bool
 

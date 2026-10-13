@@ -4,9 +4,9 @@ from datetime import UTC, datetime
 import httpx
 import pytest
 
+from researchflow.infrastructure.llm.errors import LLMProviderRateLimitError
 from researchflow.infrastructure.llm.openai_compatible import OpenAICompatibleConfig, OpenAICompatibleLLM
 from researchflow.infrastructure.llm.retry_llm import RetryLLM
-from researchflow.infrastructure.llm.errors import LLMProviderRateLimitError
 from researchflow.ports.llm import LLMRequest
 
 

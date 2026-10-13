@@ -1,18 +1,18 @@
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from collections.abc import Callable
 
 import httpx
 
-from researchflow.infrastructure.llm.errors import(
-    LLMProviderError,
+from researchflow.infrastructure.llm.errors import (
     LLMProviderProtocolError,
     LLMProviderRateLimitError,
     LLMProviderRequestError,
     LLMProviderUnavailableError,
 )
-from researchflow.ports.llm import LLMRequest,LLMResponse
 from researchflow.infrastructure.llm.retry_after import parse_retry_after
+from researchflow.ports.llm import LLMRequest, LLMResponse
+
 
 @dataclass(frozen=True)
 class OpenAICompatibleConfig:

@@ -1,9 +1,10 @@
 import asyncio
 
-from researchflow.application.use_cases.ask_research_question import(
+from researchflow.application.use_cases.ask_research_question import (
     AskResearchQuestion,
 )
 from researchflow.infrastructure.llm.fake_llm import FakeLLM
+
 
 async def main() ->None:
     llm = FakeLLM(

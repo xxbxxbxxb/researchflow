@@ -2,8 +2,8 @@ import importlib
 
 import pytest
 
-from researchflow.domain.projects import Project, TaskRecord
 from researchflow.application.evidence import manual_evidence
+from researchflow.domain.projects import Project, TaskRecord
 from researchflow.domain.research import Evidence
 
 
@@ -51,8 +51,11 @@ async def test_durable_worker_builds_report_and_never_repeats_committed_steps(da
 @pytest.mark.asyncio
 async def test_worker_cli_once_executes_existing_database_run(database,repository,tmp_path):
     worker_modules()
+    import asyncio
+    import os
+    import sys
+
     from researchflow.infrastructure.storage.run_repository import RunRepository
-    import asyncio, os, sys
     await repository.create_project(Project('p','project',''))
     await repository.save_task(TaskRecord('cli','p','no sources'))
     runs = RunRepository(database,repository)

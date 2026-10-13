@@ -1,8 +1,7 @@
 import json
-from dataclasses import asdict
 
 from researchflow.domain.tool_calls import CollectionResult
-from researchflow.ports.model import ChatRequest, ChatMessage
+from researchflow.ports.model import ChatMessage, ChatRequest
 from researchflow.runtime.tools import ToolArgumentsError
 
 

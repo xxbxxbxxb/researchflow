@@ -1,31 +1,31 @@
 import os
 from contextlib import AsyncExitStack, asynccontextmanager
+from dataclasses import dataclass
 from typing import Literal
 from uuid import uuid4
-from dataclasses import dataclass
 
 import httpx
 
 from researchflow.infrastructure.llm.chat_model import OpenAIChatModel
 from researchflow.infrastructure.llm.demo_model import DemoCaseModel
 from researchflow.infrastructure.llm.openai_compatible import OpenAICompatibleConfig
+from researchflow.infrastructure.storage.budget_repository import BudgetRepository
 from researchflow.infrastructure.storage.database import Database
 from researchflow.infrastructure.storage.repositories import ResearchRepository
 from researchflow.infrastructure.storage.retrieval import PostgresRetriever
 from researchflow.infrastructure.storage.run_repository import RunRepository
 from researchflow.ports.runtime import InputVersionMismatchError
-from researchflow.runtime.fixed_workflow import FixedWorkflow
-from researchflow.runtime.worker import Worker
-from researchflow.runtime.model_runtime import ModelRuntime,BoundChatModel
 from researchflow.runtime.budgeted_runs import BudgetedRuns
-from researchflow.infrastructure.storage.budget_repository import BudgetRepository
+from researchflow.runtime.fixed_workflow import FixedWorkflow
+from researchflow.runtime.model_runtime import BoundChatModel, ModelRuntime
+from researchflow.runtime.worker import Worker
 
 
 class ConfiguredWorkflow:
     def __init__(self, runs, research, retriever, model, mode, context_window: int | None = None, price=None,trace=None):
         self.runs,self.research,self.retriever,self.model,self.mode=runs,research,retriever,model,mode
         self.context_window,self.price=context_window,price
-        self.runtimes={}
+        self.runtimes: dict[tuple[str,int],ModelRuntime]={}
         from researchflow.ports.telemetry import NullTrace
         self.trace=trace or NullTrace()
 
@@ -50,15 +50,16 @@ class ConfiguredWorkflow:
             driver=GraphWorkflow if record.input_manifest['workflow_version']=='graph-v1' else FixedWorkflow
             collector=None
             if record.input_manifest.get('collect_sources'):
-                from researchflow.runtime.tools import ToolRegistry
-                from researchflow.runtime.react import MinimalReAct
+                from pathlib import Path
+
                 from researchflow.application.ingestion import IngestSource
                 from researchflow.domain.access import Principal
                 from researchflow.infrastructure.sources.arxiv import ArxivSearch
-                from researchflow.infrastructure.sources.safe_http import SourceFetcher
                 from researchflow.infrastructure.sources.parsers import DocumentParser
+                from researchflow.infrastructure.sources.safe_http import SourceFetcher
                 from researchflow.infrastructure.storage.blob_store import BlobStore
-                from pathlib import Path
+                from researchflow.runtime.react import MinimalReAct
+                from researchflow.runtime.tools import ToolRegistry
                 fetcher=SourceFetcher()
                 ingestion=IngestSource(self.research,BlobStore(Path(os.getenv('RF_BLOB_ROOT','.researchflow-data/blobs'))),DocumentParser(),fetcher)
                 registry=ToolRegistry(self.runs,store,ArxivSearch(fetcher),ingestion,self.research,self.retriever)
@@ -108,10 +109,10 @@ class APIResources:
 async def api_resources(settings, database: Database | None = None):
     from researchflow.application.ingestion import IngestSource
     from researchflow.application.knowledge import KnowledgeService
-    from researchflow.infrastructure.storage.knowledge_repository import KnowledgeRepository
     from researchflow.infrastructure.sources.parsers import DocumentParser
     from researchflow.infrastructure.sources.safe_http import SourceFetcher
     from researchflow.infrastructure.storage.blob_store import BlobStore
+    from researchflow.infrastructure.storage.knowledge_repository import KnowledgeRepository
     from researchflow.infrastructure.storage.session_repository import SessionRepository
     async with AsyncExitStack() as stack:
         db = database or Database(settings.database_url)

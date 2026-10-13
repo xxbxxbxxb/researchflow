@@ -1,6 +1,6 @@
 """Bounded diagnostics and actual browser images from synthetic CI fixtures."""
-import base64
 import asyncio
+import base64
 import os
 import sys
 from pathlib import Path
@@ -23,8 +23,9 @@ for name in ('e2e-api.log','e2e-worker.log'):
 
 async def failures():
     sys.path.insert(0,str(root/'src'))
-    from researchflow.infrastructure.storage.database import Database
     from sqlalchemy import text
+
+    from researchflow.infrastructure.storage.database import Database
     url=os.getenv('RF_TEST_DATABASE_URL')
     if not url:
         return

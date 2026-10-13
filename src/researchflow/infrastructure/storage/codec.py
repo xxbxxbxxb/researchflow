@@ -1,9 +1,8 @@
+import math
+import types
 from dataclasses import fields, is_dataclass
 from datetime import datetime
-from typing import Any
-from typing import get_args, get_origin, get_type_hints, Literal, Union
-import types
-import math
+from typing import Any, Literal, Union, cast, get_args, get_origin, get_type_hints
 
 
 def jsonable(value: Any) -> Any:
@@ -53,7 +52,7 @@ def decode_dataclass(cls: Any, data: Any) -> Any:
         if not isinstance(data,dict):
             raise ValueError('stored record invalid')
         hints = get_type_hints(cls)
-        return cls(**{f.name:decode_dataclass(hints[f.name],data[f.name]) for f in fields(cls) if f.name in data})
+        return cast(Any,cls)(**{f.name:decode_dataclass(hints[f.name],data[f.name]) for f in fields(cls) if f.name in data})
     if cls is float:
         if type(data) not in (int,float) or not math.isfinite(data):
             raise ValueError('stored floating scalar invalid')

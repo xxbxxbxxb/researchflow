@@ -2,8 +2,6 @@ import asyncio
 
 import pytest
 
-
-
 from researchflow.infrastructure.llm.deadline_llm import (
     DeadlineLLM,
 )

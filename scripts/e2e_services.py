@@ -7,8 +7,8 @@ import sys
 from pathlib import Path
 
 from argon2 import PasswordHasher
-from pypdf import PdfWriter,PdfReader
-from pypdf.generic import DictionaryObject,NameObject,DecodedStreamObject
+from pypdf import PdfReader, PdfWriter
+from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
 

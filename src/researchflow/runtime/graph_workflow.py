@@ -1,10 +1,11 @@
 from typing import TypedDict
-from langgraph.graph import StateGraph,START,END
-from langgraph.types import interrupt,Command
+
+from langgraph.graph import END, START, StateGraph
+from langgraph.types import Command, interrupt
 
 from researchflow.domain.runs import RunOutcome
-from researchflow.runtime.fixed_workflow import FixedWorkflow,PHASES
 from researchflow.runtime.checkpointer import FencedCheckpointer
+from researchflow.runtime.fixed_workflow import PHASES, FixedWorkflow
 
 
 class GraphState(TypedDict,total=False):
@@ -46,5 +47,5 @@ class GraphWorkflow(FixedWorkflow):
         saved=await saver.aget_tuple(config)
         decision=await repository.get_review(handle.project_id,handle.run_id)
         value=Command(resume={'action':decision.action}) if decision else None if saved else {'run_id':handle.run_id}
-        result=await graph.ainvoke(value,config)
+        result=await graph.ainvoke(value,config,durability='sync')
         return RunOutcome('awaiting_review' if result.get('__interrupt__') else 'succeeded',result.get('report_id'))

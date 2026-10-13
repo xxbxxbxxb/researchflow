@@ -18,8 +18,24 @@ from researchflow.infrastructure.storage.codec import jsonable
 
 
 async def run(args):
+    if args.command == 'validate':
+        if args.scope=='live':
+            from researchflow.evaluation.dataset import load_split
+            from researchflow.evaluation.runner import EvaluationRunner
+            result=await EvaluationRunner().run(load_split('holdout'),'live',Path(args.output))
+            return result,0 if result.status=='completed' else 2
+        from researchflow.release import validate
+        result=await asyncio.to_thread(validate,Path(args.output))
+        return result,0 if result['status']=='passed' else 1 if result['status']=='failed' else 2
+    if args.command == 'evaluate':
+        from researchflow.evaluation.dataset import load_split, validate_splits
+        from researchflow.evaluation.runner import EvaluationRunner
+        validate_splits(load_split('development'),load_split('holdout'))
+        result=await EvaluationRunner().run(load_split(args.split),args.mode,Path(args.output))
+        return result,0 if result.status=='completed' else 2
     if args.command == 'hash-password':
         from getpass import getpass
+
         from argon2 import PasswordHasher
         password = await asyncio.to_thread(getpass,'New ResearchFlow password: ')
         if len(password)<12:
@@ -27,8 +43,9 @@ async def run(args):
         return {'password_hash':await asyncio.to_thread(PasswordHasher().hash,password)},0
     if args.command == 'serve':
         import uvicorn
-        from researchflow.settings import Settings
+
         from researchflow.api.app import create_app
+        from researchflow.settings import Settings
         settings = Settings.from_env()
         settings.validate_binding(args.host)
         await uvicorn.Server(uvicorn.Config(create_app(settings),host=args.host,port=args.port,proxy_headers=False)).serve()
@@ -61,9 +78,9 @@ async def run(args):
             model = DemoCaseModel(case)
         else:
             model = OpenAIChatModel(client,OpenAICompatibleConfig(os.environ['RF_LLM_BASE_URL'],os.environ['RF_LLM_API_KEY'],os.environ['RF_LLM_MODEL']))
-        from researchflow.runtime.budget import MemoryBudgetRepository
-        from researchflow.runtime.model_runtime import ModelRuntime,BoundChatModel
         from researchflow.domain.runs import RunHandle
+        from researchflow.runtime.budget import MemoryBudgetRepository
+        from researchflow.runtime.model_runtime import BoundChatModel, ModelRuntime
         handle=RunHandle(uuid4().hex,task.project_id,task.task_id,1,'cli')
         runtime=ModelRuntime(model,MemoryBudgetRepository(handle),context_window=int(os.environ['RF_CONTEXT_WINDOW']) if mode=='live' else 65536)
         async with asyncio.timeout(300):
@@ -76,6 +93,15 @@ async def run(args):
 def main() -> int:
     parser = argparse.ArgumentParser(prog='researchflow')
     commands = parser.add_subparsers(dest='command',required=True)
+    validation=commands.add_parser('validate',help='Run engineering or live release validation')
+    validation.add_argument('--scope',choices=['engineering','live'],default='engineering')
+    validation.add_argument('--output',default='artifacts/verification')
+    validation.set_defaults(format='json')
+    evaluate=commands.add_parser('evaluate',help='Evaluate evidence support on traceable SciFact labels')
+    evaluate.add_argument('--split',choices=['development','holdout'],default='development')
+    evaluate.add_argument('--mode',choices=['contract','live'],default='contract')
+    evaluate.add_argument('--output',default='artifacts/evaluation')
+    evaluate.set_defaults(format='json')
     demo = commands.add_parser('demo',help='Run a clearly marked fixed example')
     demo.add_argument('--case',choices=list(CASES),default='supported')
     demo.add_argument('--format',choices=['json','markdown'],default='markdown')

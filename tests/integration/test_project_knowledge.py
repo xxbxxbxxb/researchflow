@@ -1,11 +1,10 @@
 import importlib
-from dataclasses import replace
 
 import pytest
 
-from researchflow.domain.projects import Project,TaskRecord
-from researchflow.domain.research import Evidence
 from researchflow.application.evidence import manual_evidence
+from researchflow.domain.projects import Project, TaskRecord
+from researchflow.domain.research import Evidence
 
 
 def service(repository,database):
@@ -19,8 +18,8 @@ def service(repository,database):
 
 
 async def report(repository):
-    from researchflow.infrastructure.llm.demo_model import CASES,DemoCaseModel
     from researchflow.application.research import ResearchService
+    from researchflow.infrastructure.llm.demo_model import CASES, DemoCaseModel
     await repository.create_project(Project('p','Knowledge project'))
     task = TaskRecord('t','p','What is the sample size?')
     await repository.save_task(task)
@@ -88,9 +87,9 @@ async def test_follow_up_is_only_a_draft_preserving_parent_and_claim_relations(d
 @pytest.mark.asyncio
 async def test_fixed_workflow_pauses_after_report_and_authorized_review_finishes_without_model(database,tmp_path):
     from test_task_api import authenticated_api
+
     from researchflow.runtime.fixed_workflow import FixedWorkflow
     from researchflow.runtime.worker import Worker
-    from researchflow.infrastructure.llm.demo_model import DemoCaseModel
     async with authenticated_api(database,tmp_path) as (client,app):
         resources = app.state.resources
         pid = (await client.post('/api/projects',json={'name':'Review project'})).json()['project_id']

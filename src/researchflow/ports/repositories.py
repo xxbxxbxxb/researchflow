@@ -1,7 +1,11 @@
+from dataclasses import dataclass
 from typing import Protocol
 
-from researchflow.domain.sources import AnchoredEvidence
+from researchflow.domain.claims import Claim, Verification
+from researchflow.domain.knowledge import FollowUpDraft, KnowledgeEntry
 from researchflow.domain.projects import TaskRecord
+from researchflow.domain.reports import ResearchResult
+from researchflow.domain.sources import AnchoredEvidence
 from researchflow.ports.sources import SnapshotRepository
 
 
@@ -13,10 +17,7 @@ class EvidenceRepository(Protocol):
 class ResearchReadRepository(SnapshotRepository, Protocol):
     async def get_task(self, project_id: str, task_id: str) -> TaskRecord | None: ...
 
-from dataclasses import dataclass
-from researchflow.domain.claims import Claim,Verification
-from researchflow.domain.reports import ResearchResult
-from researchflow.domain.knowledge import KnowledgeEntry,FollowUpDraft
+
 
 
 @dataclass(frozen=True)

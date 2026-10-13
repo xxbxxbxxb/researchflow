@@ -6,10 +6,10 @@ from dataclasses import replace
 import httpx
 import pytest
 
-from researchflow.domain.projects import Project,TaskRecord
-from researchflow.ports.model import ChatMessage,ChatRequest,ChatResponse
+from researchflow.domain.projects import Project, TaskRecord
 from researchflow.infrastructure.llm.chat_model import OpenAIChatModel
 from researchflow.infrastructure.llm.openai_compatible import OpenAICompatibleConfig
+from researchflow.ports.model import ChatMessage, ChatRequest, ChatResponse
 
 REQUEST=ChatRequest((ChatMessage('user','A small fixture question.'),))
 
@@ -27,7 +27,7 @@ async def setup(database,repository):
     await repository.create_project(Project('p','Budget project'))
     await repository.save_task(TaskRecord('t','p','Fixture question'))
     runs=RunRepository(database,repository)
-    record=await runs.enqueue('t','p','fixed-v1',input_manifest={'execution_mode':'demo'})
+    await runs.enqueue('t','p','fixed-v1',input_manifest={'execution_mode':'demo'})
     handle=await runs.claim_next('worker')
     return handle,runs
 
@@ -150,13 +150,13 @@ async def test_context_capacity_and_versioned_cost_are_explicit(database,reposit
 @pytest.mark.asyncio
 async def test_production_workflow_routes_all_model_phases_through_durable_budget(database,repository):
     runtime_module,budget,storage=modules()
-    from researchflow.composition import ConfiguredWorkflow
-    from researchflow.infrastructure.llm.demo_model import DemoCaseModel,CASES
-    from researchflow.infrastructure.storage.retrieval import PostgresRetriever
-    from researchflow.runtime.worker import Worker
     from researchflow.application.evidence import manual_evidence
+    from researchflow.composition import ConfiguredWorkflow
     from researchflow.domain.research import Evidence
+    from researchflow.infrastructure.llm.demo_model import CASES, DemoCaseModel
+    from researchflow.infrastructure.storage.retrieval import PostgresRetriever
     from researchflow.infrastructure.storage.run_repository import RunRepository
+    from researchflow.runtime.worker import Worker
     await repository.create_project(Project('p','Production budget'))
     snapshot,_=manual_evidence('p',Evidence('e','synthetic','p1',CASES['supported']['source']))
     await repository.save_snapshot(snapshot)
@@ -173,3 +173,24 @@ async def test_production_workflow_routes_all_model_phases_through_durable_budge
     assert saved.model_calls_used==2
     assert saved.active_elapsed_seconds>0
     assert len(await storage.BudgetRepository(database,runs).list_usage('p',record.run_id))==2
+
+
+@pytest.mark.asyncio
+async def test_independent_preview_and_worker_runtimes_do_not_double_charge_the_same_active_time(database,repository):
+    import time
+    runtime_module,budget,storage=modules()
+    handle,runs=await setup(database,repository)
+    class Provider:
+        async def complete(self,request):
+            return ChatResponse('ok')
+    store=storage.BudgetRepository(database,runs)
+    worker=runtime_module.ModelRuntime(Provider(),store,65536)
+    preview=runtime_module.ModelRuntime(Provider(),store,65536)
+    start=time.monotonic()
+    await worker.tick(handle)
+    await preview.tick(handle)
+    await asyncio.sleep(0.2)
+    await worker.tick(handle)
+    await preview.tick(handle)
+    elapsed=(await store.snapshot(handle)).active_elapsed_seconds
+    assert elapsed<=time.monotonic()-start+0.05,'overlapping runtimes must share one active wall clock'

@@ -1,9 +1,11 @@
 from contextlib import contextmanager
 from dataclasses import asdict
+
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor,BatchSpanProcessor,SpanExporter,SpanExportResult
-from opentelemetry.trace import Status,StatusCode,get_current_span
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor, SpanExporter, SpanExportResult
 from opentelemetry.sdk.trace.sampling import ALWAYS_ON
+from opentelemetry.trace import Status, StatusCode, get_current_span
+
 from researchflow.infrastructure.telemetry.redaction import redact
 
 

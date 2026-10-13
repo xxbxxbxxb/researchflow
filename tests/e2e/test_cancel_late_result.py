@@ -1,11 +1,12 @@
 import asyncio
+
 import pytest
 
-from researchflow.domain.runs import StepOutput, RunOutcome
+from researchflow.domain.projects import Project, TaskRecord
+from researchflow.domain.runs import RunOutcome, StepOutput
+from researchflow.infrastructure.storage.run_repository import RunRepository
 from researchflow.ports.runtime import RunCancelledError
 from researchflow.runtime.worker import Worker
-from researchflow.domain.projects import Project, TaskRecord
-from researchflow.infrastructure.storage.run_repository import RunRepository
 
 
 async def setup_run(database, repository):

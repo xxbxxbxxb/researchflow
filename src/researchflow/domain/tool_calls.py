@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Any
-from researchflow.domain.sources import SourceSnapshot
+
 from researchflow.domain.knowledge import FollowUpDraft
+from researchflow.domain.sources import SourceSnapshot
 
 
 @dataclass(frozen=True, slots=True)

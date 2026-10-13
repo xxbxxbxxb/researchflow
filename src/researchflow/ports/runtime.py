@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from researchflow.domain.runs import RunHandle, RunOutcome, RunRecord, RunState, StepOutput, StepReceipt, LeaseState
+from researchflow.domain.runs import LeaseState, RunHandle, RunOutcome, RunRecord, RunState, StepOutput, StepReceipt
 
 
 class RunOwnershipLostError(RuntimeError):

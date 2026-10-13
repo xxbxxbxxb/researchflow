@@ -10,10 +10,21 @@ from researchflow.domain.claims import Claim, Verification
 from researchflow.domain.errors import EvidenceConflict, ProjectBoundaryError
 from researchflow.domain.projects import Project, TaskRecord
 from researchflow.domain.reports import ReportVersion, ResearchResult
-from researchflow.domain.sources import AnchoredEvidence, SourceSnapshot, SnapshotPage
+from researchflow.domain.sources import AnchoredEvidence, SnapshotPage, SourceSnapshot
 from researchflow.infrastructure.storage.codec import decode_dataclass, jsonable
 from researchflow.infrastructure.storage.database import Database
-from researchflow.infrastructure.storage.models import ClaimRow, DocumentRow, EvidenceRow, LinkRow, PageRow, ProjectRow, ReportRow, SnapshotRow, TaskRow, VerificationRow
+from researchflow.infrastructure.storage.models import (
+    ClaimRow,
+    DocumentRow,
+    EvidenceRow,
+    LinkRow,
+    PageRow,
+    ProjectRow,
+    ReportRow,
+    SnapshotRow,
+    TaskRow,
+    VerificationRow,
+)
 
 
 class ResearchRepository:

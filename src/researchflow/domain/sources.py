@@ -1,6 +1,6 @@
+import unicodedata
 from dataclasses import dataclass
 from datetime import UTC, datetime
-import unicodedata
 
 from researchflow.domain.research import Evidence
 

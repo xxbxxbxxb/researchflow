@@ -1,10 +1,10 @@
-from fastapi import APIRouter,Request,Depends
+from fastapi import APIRouter, Depends, Request
 
 from researchflow.api.auth import require_project
 from researchflow.api.errors import APIError
-from researchflow.infrastructure.storage.codec import jsonable
-from researchflow.domain.reports import ResearchResult,ReportVersion
 from researchflow.api.schemas import EvidenceBundle
+from researchflow.domain.reports import ReportVersion, ResearchResult
+from researchflow.infrastructure.storage.codec import jsonable
 
 router = APIRouter(tags=['reports'],dependencies=[Depends(require_project)])
 

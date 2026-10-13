@@ -1,11 +1,13 @@
 import importlib
+
 import pytest
-from researchflow.domain.projects import Project,TaskRecord
-from researchflow.domain.research import Evidence
+
 from researchflow.application.evidence import manual_evidence
-from researchflow.infrastructure.llm.demo_model import DemoCaseModel,CASES
-from researchflow.infrastructure.storage.run_repository import RunRepository
+from researchflow.domain.projects import Project, TaskRecord
+from researchflow.domain.research import Evidence
+from researchflow.infrastructure.llm.demo_model import CASES, DemoCaseModel
 from researchflow.infrastructure.storage.retrieval import PostgresRetriever
+from researchflow.infrastructure.storage.run_repository import RunRepository
 from researchflow.runtime.fixed_workflow import FixedWorkflow
 
 

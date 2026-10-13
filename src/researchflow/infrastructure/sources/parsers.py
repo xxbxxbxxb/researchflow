@@ -32,7 +32,7 @@ class DocumentParser:
                 pages = tuple(SnapshotPage(n + 1, p.extract_text() or '') for n, p in enumerate(pdf.pages))
                 if not any(p.text.strip() for p in pages):
                     raise ValueError('unsupported_scan: PDF has no extractable text; OCR is not enabled')
-                title = str((pdf.metadata or {}).get('/Title', ''))
+                title = str(pdf.metadata.get('/Title','')) if pdf.metadata is not None else ''
             elif media in {'text/plain', 'text/markdown', 'text/x-markdown'}:
                 pages = (SnapshotPage(1, data.decode('utf-8-sig', errors='strict')),)
             elif media == 'text/html':

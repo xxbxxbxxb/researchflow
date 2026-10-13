@@ -1,20 +1,22 @@
 import asyncio
+import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 from uuid import uuid4
 
-from fastapi import FastAPI,Request
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import ValidationError
-from starlette.exceptions import HTTPException
 from sqlalchemy import text
+from starlette.exceptions import HTTPException
 
-from researchflow.api import auth,projects,sources,tasks,runs,reports,events,knowledge,preview
+from researchflow.api import auth, events, knowledge, preview, projects, reports, runs, sources, tasks
 from researchflow.api.errors import APIError
 from researchflow.api.limits import BodyLimitMiddleware
 from researchflow.composition import api_resources
-from researchflow.domain.errors import EvidenceConflict,ProjectBoundaryError
+from researchflow.domain.errors import EvidenceConflict, ProjectBoundaryError
 from researchflow.infrastructure.storage.database import Database
 from researchflow.ports.runtime import InputVersionMismatchError
 from researchflow.settings import Settings
@@ -85,6 +87,10 @@ def create_app(settings: Settings,database: Database | None = None) -> FastAPI:
 
     for router in (auth.router,projects.router,sources.router,tasks.router,runs.router,reports.router,events.router,knowledge.router,preview.router):
         app.include_router(router)
+    dist=Path(os.getenv('RF_WEB_DIST','web/dist'))
+    if dist.is_dir():
+        from researchflow.api.static import WorkspaceStaticFiles
+        app.mount('/',WorkspaceStaticFiles(directory=dist,html=True),name='workspace')
     return app
 
 

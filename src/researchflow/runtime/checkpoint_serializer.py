@@ -1,6 +1,7 @@
 """Closed, JSON-only checkpoint format. No dynamic type lookup or pickle."""
 import json
 import math
+
 from langgraph.types import Interrupt
 
 

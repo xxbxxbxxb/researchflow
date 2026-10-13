@@ -1,18 +1,16 @@
 import asyncio
+import json
 
 import httpx
 import pytest
-import json
 
-from researchflow.infrastructure.llm.openai_compatible import (
-    OpenAICompatibleConfig,
-    OpenAICompatibleLLM
-)
 from researchflow.infrastructure.llm.errors import (
     LLMProviderError,
     LLMProviderUnavailableError,
 )
+from researchflow.infrastructure.llm.openai_compatible import OpenAICompatibleConfig, OpenAICompatibleLLM
 from researchflow.ports.llm import LLMRequest
+
 
 def make_config() ->OpenAICompatibleConfig:
     return OpenAICompatibleConfig(

@@ -4,11 +4,11 @@ from researchflow.application.use_cases.prepare_research_task import (
     EvidenceInput,
     PrepareResearchTask,
 )
-
-from researchflow.domain.research import(
+from researchflow.domain.research import (
     Evidence,
     ResearchTask,
 )
+
 
 def sample_input() -> EvidenceInput:
     return EvidenceInput(

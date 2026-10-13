@@ -1,13 +1,13 @@
-from fastapi import APIRouter,Request,Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response
 from starlette.datastructures import UploadFile
 
 from researchflow.api.auth import require_project
 from researchflow.api.errors import APIError
 from researchflow.api.schemas import URLInput
-from researchflow.ports.sources import SourceInput
 from researchflow.domain.sources import SourceSnapshot
 from researchflow.infrastructure.storage.codec import jsonable
+from researchflow.ports.sources import SourceInput
 
 router = APIRouter(prefix='/api/projects/{project_id}/sources',tags=['sources'],dependencies=[Depends(require_project)])
 MAX_BYTES = 20 * 1024 * 1024

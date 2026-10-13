@@ -2,9 +2,13 @@ import asyncio
 from contextlib import suppress
 from uuid import uuid4
 
-from researchflow.infrastructure.llm.errors import LLMProviderRateLimitError,LLMProviderUnavailableError
-from researchflow.ports.runtime import RunOwnershipLostError,RunCancelledError
 from researchflow.domain.usage import BudgetExceededError
+from researchflow.infrastructure.llm.errors import (
+    LLMProviderProtocolError,
+    LLMProviderRateLimitError,
+    LLMProviderUnavailableError,
+)
+from researchflow.ports.runtime import RunCancelledError, RunOwnershipLostError
 
 
 class StreamInterruptedError(RuntimeError):
@@ -58,6 +62,10 @@ async def stream_model(runtime,handle,request):
                     if wait>=deadline-runtime.clock():
                         raise BudgetExceededError('stream retry exceeds operation deadline','operation') from exc
                     await runtime.sleep(wait)
+                except LLMProviderProtocolError as exc:
+                    if delivered:
+                        raise StreamInterruptedError('preview is incomplete after a protocol failure') from exc
+                    raise
                 finally:
                     await iterator.aclose()
     finally:

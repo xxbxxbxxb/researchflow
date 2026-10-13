@@ -3,6 +3,7 @@ import json
 from dataclasses import replace
 
 import pytest
+
 from researchflow.application.evidence import manual_evidence
 from researchflow.domain.claims import Claim
 from researchflow.domain.research import Evidence

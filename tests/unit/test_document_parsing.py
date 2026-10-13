@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 from pypdf import PdfWriter
-from pypdf.generic import DictionaryObject, NameObject, DecodedStreamObject
+from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 
 
 def parser():
@@ -46,9 +46,10 @@ def test_physical_pdf_pages_are_preserved():
 
 @pytest.mark.asyncio
 async def test_chinese_pdf_owned_parser_and_saved_quote_offsets():
+    from datetime import datetime, timezone
+
     from researchflow.application.evidence import anchor_evidence, validate_anchor
     from researchflow.domain.sources import SourceSnapshot
-    from datetime import datetime, timezone
     data = (Path(__file__).parents[1] / 'fixtures/sources/chinese-two-pages.pdf').read_bytes()
     document = await parser().parse_async(data, 'application/pdf')
     assert document.pages[1].number == 2 and '第二页保留物理页码' in document.pages[1].text

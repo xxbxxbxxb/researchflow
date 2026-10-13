@@ -1,4 +1,5 @@
 import hashlib
+
 from researchflow.ports.telemetry import Scalar
 
 SAFE={'run_id','task_id','project_id','step_id','attempt_id','epoch','operation','model','status','failure_kind','error_class','latency_seconds','execution_mode','tool_name'}

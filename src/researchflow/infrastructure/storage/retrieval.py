@@ -1,4 +1,7 @@
-from sqlalchemy import select, func, or_, literal_column
+from collections.abc import Sequence
+from typing import Any
+
+from sqlalchemy import func, literal_column, or_, select
 from sqlalchemy.dialects.postgresql import insert
 
 from researchflow.application.retrieval import INDEX_VERSION, chunk_snapshot, distinct_candidates
@@ -18,7 +21,7 @@ class PostgresRetriever:
 
     async def index_snapshot(self, snapshot: SourceSnapshot) -> None:
         chunks = chunk_snapshot(snapshot)
-        vectors = [None] * len(chunks)
+        vectors: list[tuple[float,...] | None] = [None] * len(chunks)
         if self.embeddings:
             for offset in range(0, len(chunks), 32):
                 batch = await self.embeddings.embed(tuple(c.text for c in chunks[offset:offset+32]))
@@ -43,14 +46,14 @@ class PostgresRetriever:
             if self.embeddings and any(namespace != self.namespace for namespace in namespaces):
                 raise ValueError('index_version_mismatch: reindex sources explicitly before changing embedding model/dimension')
             vector_active = bool(self.embeddings and namespaces)
-            config = literal_column("'simple'::regconfig")
+            config: Any = literal_column("'simple'::regconfig")
             document = func.to_tsvector(config, ChunkRow.text)
             terms = func.plainto_tsquery(config, query)
             rank = func.ts_rank_cd(document, terms)
             trigram = func.word_similarity(query, ChunkRow.text)
             lexical_score = rank + trigram
             lexical = (await session.scalars(select(ChunkRow).where(*filters, or_(document.op('@@')(terms), trigram > 0.08)).order_by(lexical_score.desc(), ChunkRow.chunk_id).limit(32))).all()
-            vector_rows = []
+            vector_rows: Sequence[ChunkRow] = []
             if vector_active:
                 assert self.embeddings is not None
                 batch = await self.embeddings.embed((query,))
@@ -65,6 +68,6 @@ class PostgresRetriever:
                     ranks[row.chunk_id] = ranks.get(row.chunk_id, 0.0) + 1.0 / (60 + rank_number)
                     rows[row.chunk_id] = row
             ordered = sorted(rows.values(), key=lambda row:(-ranks[row.chunk_id], row.chunk_id))
-            uris = dict((await session.execute(select(SnapshotRow.snapshot_id, SnapshotRow.source_uri).where(SnapshotRow.project_id == project_id))).all())
+            uris = {sid:uri for sid,uri in (await session.execute(select(SnapshotRow.snapshot_id, SnapshotRow.source_uri).where(SnapshotRow.project_id == project_id))).all()}
             candidates = tuple(RetrievalCandidate(row.chunk_id, row.project_id, row.snapshot_id, row.page, row.start, row.end, row.text, uris[row.snapshot_id], ranks[row.chunk_id]) for row in ordered)
             return RetrievalResult(distinct_candidates(candidates, top_k), 'hybrid' if vector_active else 'lexical', self.namespace if vector_active else None)

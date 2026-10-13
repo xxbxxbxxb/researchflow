@@ -66,19 +66,20 @@ async def test_pgvector_hybrid_and_index_version_cannot_be_mixed(database, repos
 @pytest.mark.asyncio
 async def test_pdf_to_retrieved_anchored_evidence_report_survives_reopen(database, repository, tmp_path):
     m = retrieval_module()
-    from researchflow.application.ingestion import IngestSource
-    from researchflow.application.retrieval import EvidenceSelector
-    from researchflow.application.claims import ClaimExtractor
-    from researchflow.application.verification import ClaimVerifier
-    from researchflow.application.reports import ReportBuilder
-    from researchflow.application.evidence import validate_anchor
-    from researchflow.domain.reports import ReportInputs, ResearchResult
-    from researchflow.ports.model import ChatResponse
     import json
+
+    from researchflow.application.claims import ClaimExtractor
+    from researchflow.application.evidence import validate_anchor
+    from researchflow.application.ingestion import IngestSource
+    from researchflow.application.reports import ReportBuilder
+    from researchflow.application.retrieval import EvidenceSelector
+    from researchflow.application.verification import ClaimVerifier
+    from researchflow.domain.reports import ReportInputs, ResearchResult
     from researchflow.infrastructure.sources.parsers import DocumentParser
     from researchflow.infrastructure.storage.blob_store import BlobStore
     from researchflow.infrastructure.storage.database import Database
     from researchflow.infrastructure.storage.repositories import ResearchRepository
+    from researchflow.ports.model import ChatResponse
     from researchflow.ports.sources import SourceInput
     await repository.create_project(Project('p','PDF project',''))
     blob = BlobStore(tmp_path/'blobs')

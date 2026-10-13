@@ -42,7 +42,7 @@ class ClaimVerifier:
             raise ValueError('claim contains unavailable evidence IDs')
         if not evidences:
             return tuple(judgment(c,'insufficient',(),'没有可用于验证的资料。',('no_evidence',)) for c in claims)
-        results = []
+        results: list[Verification] = []
         for offset in range(0, len(claims), 4):
             batch = claims[offset:offset+4]
             data = {'claims':[{'claim_id':c.claim_id,'text':c.text,'proposed_evidence_ids':c.proposed_evidence_ids,'qualifiers':c.qualifiers} for c in batch], 'evidence':[{'evidence_id':e.evidence.evidence_id,'text':e.evidence.text} for e in evidences]}

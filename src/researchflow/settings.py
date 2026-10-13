@@ -2,7 +2,7 @@ import ipaddress
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
 
 @dataclass(frozen=True)
@@ -44,4 +44,4 @@ class Settings:
             raise ValueError('RF_DATABASE_URL is required')
         origins = os.getenv('RF_ALLOWED_ORIGINS')
         context = os.getenv('RF_CONTEXT_WINDOW')
-        return cls(database_url=url,password_hash=os.getenv('RF_PASSWORD_HASH') or None,allowed_origins=tuple(x.strip() for x in origins.split(',') if x.strip()) if origins else cls.__dataclass_fields__['allowed_origins'].default,blob_root=Path(os.getenv('RF_BLOB_ROOT','.researchflow-data/blobs')),execution_mode=os.getenv('RF_MODE','demo'),secure_cookies=os.getenv('RF_SECURE_COOKIES','false').lower()=='true',llm_base_url=os.getenv('RF_LLM_BASE_URL',''),llm_api_key=os.getenv('RF_LLM_API_KEY',''),llm_model=os.getenv('RF_LLM_MODEL',''),context_window=int(context) if context else None,preview_enabled=os.getenv('RF_PREVIEW_ENABLED','false').lower()=='true')
+        return cls(database_url=url,password_hash=os.getenv('RF_PASSWORD_HASH') or None,allowed_origins=tuple(x.strip() for x in origins.split(',') if x.strip()) if origins else ('http://127.0.0.1:8000','http://localhost:8000','http://localhost:5173','http://127.0.0.1:5173'),blob_root=Path(os.getenv('RF_BLOB_ROOT','.researchflow-data/blobs')),execution_mode=cast(Literal['demo','live'],os.getenv('RF_MODE','demo')),secure_cookies=os.getenv('RF_SECURE_COOKIES','false').lower()=='true',llm_base_url=os.getenv('RF_LLM_BASE_URL',''),llm_api_key=os.getenv('RF_LLM_API_KEY',''),llm_model=os.getenv('RF_LLM_MODEL',''),context_window=int(context) if context else None,preview_enabled=os.getenv('RF_PREVIEW_ENABLED','false').lower()=='true')

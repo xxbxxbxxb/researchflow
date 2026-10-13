@@ -1,9 +1,10 @@
 import asyncio
 import json
+from contextlib import suppress
 from dataclasses import asdict
 from hashlib import sha256
+from typing import Any
 from uuid import uuid4
-from contextlib import suppress
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
@@ -12,9 +13,8 @@ from researchflow.domain.knowledge import FollowUpDraft
 from researchflow.domain.projects import TaskRecord
 from researchflow.domain.runs import RunHandle
 from researchflow.domain.tool_calls import ToolCall, ToolResult
+from researchflow.ports.runtime import RunCancelledError, RunOwnershipLostError
 from researchflow.ports.sources import SourceInput
-from researchflow.ports.runtime import RunCancelledError,RunOwnershipLostError
-from researchflow.domain.usage import BudgetExceededError
 
 
 class ToolAuthorizationError(ValueError):
@@ -45,7 +45,7 @@ class FollowUpArgs(BaseModel):
     question: str=Field(min_length=1,max_length=5000)
 
 
-ARGUMENTS={'search_sources':QueryArgs,'fetch_source':FetchArgs,'search_project':QueryArgs,'inspect_evidence':InspectArgs,'propose_follow_up':FollowUpArgs}
+ARGUMENTS: dict[str,Any]={'search_sources':QueryArgs,'fetch_source':FetchArgs,'search_project':QueryArgs,'inspect_evidence':InspectArgs,'propose_follow_up':FollowUpArgs}
 
 
 class ToolRegistry:

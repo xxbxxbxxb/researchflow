@@ -2,15 +2,15 @@ from dataclasses import asdict
 from typing import Literal, cast
 
 from researchflow.application.claims import ClaimExtractor
-from researchflow.application.verification import ClaimVerifier
 from researchflow.application.reports import ReportBuilder
 from researchflow.application.retrieval import EvidenceSelector
+from researchflow.application.verification import ClaimVerifier
 from researchflow.domain.reports import ReportInputs, ResearchResult
 from researchflow.domain.runs import RunHandle, RunOutcome, StepOutput
 from researchflow.ports.model import ChatModelPort
 from researchflow.ports.repositories import ResearchReadRepository
-from researchflow.ports.retrieval import Retriever, RetrievalResult, RetrievalCandidate
-from researchflow.ports.runtime import RunRepositoryPort, InputVersionMismatchError
+from researchflow.ports.retrieval import RetrievalCandidate, RetrievalResult, Retriever
+from researchflow.ports.runtime import InputVersionMismatchError, RunRepositoryPort
 from researchflow.ports.telemetry import NullTrace
 
 PHASES = ('collect','retrieve','evidence','claims','verify','report')
@@ -50,11 +50,11 @@ class FixedWorkflow:
                 raise ValueError("prior business phase has no commit receipt")
             outputs[previous]=saved.output
         if phase == 'collect':
-            source_ids=list(record.input_manifest['source_ids'])
+            collect_ids=list(record.input_manifest['source_ids'])
             if self.collector is not None and record.input_manifest.get('collect_sources'):
                 collected=await self.collector.collect(handle,task.question)
-                source_ids.extend(collected.source_ids)
-            output = StepOutput(data={'source_ids':list(dict.fromkeys(source_ids))})
+                collect_ids.extend(collected.source_ids)
+            output = StepOutput(data={'source_ids':list(dict.fromkeys(collect_ids))})
         elif phase == 'retrieve':
             source_ids = tuple(outputs['collect'].data['source_ids'])
             result = await self.retriever.search(handle.project_id,task.question,source_ids) if source_ids else RetrievalResult((),'lexical',None)
@@ -83,8 +83,8 @@ class FixedWorkflow:
             mode = cast(Literal['lexical','hybrid'],outputs['retrieve'].data['mode'])
             inputs = ReportInputs(handle.project_id,handle.task_id,handle.run_id,claims,verifications,evidences,unresolved,task.question,self.execution_mode,mode)
             report = ReportBuilder().build(inputs)
-            result = ResearchResult(handle.project_id,handle.task_id,handle.run_id,report,claims,verifications,evidences,unresolved,self.execution_mode)
-            output = StepOutput(result=result)
+            research_result = ResearchResult(handle.project_id,handle.task_id,handle.run_id,report,claims,verifications,evidences,unresolved,self.execution_mode)
+            output = StepOutput(result=research_result)
         return (await self.runs.commit_step(handle,phase,output)).output
 
     async def execute(self,handle: RunHandle) -> RunOutcome:
@@ -92,5 +92,5 @@ class FixedWorkflow:
         for phase in PHASES:
             output=await self.step(handle,phase)
         assert output.result is not None
-        state='awaiting_review' if record.input_manifest.get('require_review',False) else 'succeeded'
+        state: Literal['awaiting_review','succeeded']='awaiting_review' if record.input_manifest.get('require_review',False) else 'succeeded'
         return RunOutcome(state,output.result.report.report_id)

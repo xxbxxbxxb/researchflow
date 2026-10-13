@@ -4,7 +4,7 @@ from hashlib import sha256
 
 from researchflow.domain.errors import EvidenceConflict, ProjectBoundaryError
 from researchflow.domain.research import Evidence
-from researchflow.domain.sources import AnchoredEvidence, EvidenceAnchor, SourceSnapshot, SnapshotPage, normalize_text
+from researchflow.domain.sources import AnchoredEvidence, EvidenceAnchor, SnapshotPage, SourceSnapshot, normalize_text
 
 
 def digest(text: str) -> str:

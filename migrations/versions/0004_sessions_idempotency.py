@@ -1,5 +1,6 @@
 """Opaque sessions, persistent login limits, idempotent starts and review decisions."""
 from alembic import op
+
 revision = '0004'
 down_revision = '0003'
 branch_labels = None

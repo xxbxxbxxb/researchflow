@@ -1,9 +1,8 @@
 import asyncio
 
 import pytest
-
-from test_task_api import authenticated_api
 from test_project_knowledge import report
+from test_task_api import authenticated_api
 
 
 @pytest.mark.asyncio

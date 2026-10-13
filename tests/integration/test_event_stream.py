@@ -1,8 +1,6 @@
 import importlib
-import json
 
 import pytest
-
 from test_task_api import authenticated_api
 
 

@@ -3,22 +3,21 @@ import json
 import random as random_module
 import time
 from contextlib import suppress
-from dataclasses import asdict,replace
-from typing import Callable
+from dataclasses import asdict, replace
+from typing import Callable, cast
 from uuid import uuid4
 
 from researchflow.domain.runs import RunHandle
-from researchflow.domain.usage import ModelUsage
-from researchflow.infrastructure.llm.errors import LLMProviderRateLimitError,LLMProviderUnavailableError
-from researchflow.ports.model import ChatModelPort,ChatRequest,ChatResponse
-from researchflow.ports.runtime import RunOwnershipLostError,RunCancelledError
-from researchflow.runtime.budget import BudgetExceededError,PriceConfig,price_usage
+from researchflow.infrastructure.llm.errors import LLMProviderRateLimitError, LLMProviderUnavailableError
+from researchflow.ports.model import ChatModelPort, ChatRequest, ChatResponse, StreamModelPort
+from researchflow.ports.runtime import RunCancelledError, RunOwnershipLostError
 from researchflow.ports.telemetry import NullTrace
+from researchflow.runtime.budget import BudgetExceededError, PriceConfig, price_usage
 
 
 class ModelRuntime:
     """One budget/timeout/retry layer; delegates make one raw request."""
-    def __init__(self, provider: ChatModelPort, budgets, context_window: int | None, price: PriceConfig | None = None, max_attempts: int = 3, random: Callable[[float],float] | None = None, sleep=asyncio.sleep, clock=time.monotonic, model_name: str = 'configured',trace=None) -> None:
+    def __init__(self, provider: ChatModelPort | StreamModelPort, budgets, context_window: int | None, price: PriceConfig | None = None, max_attempts: int = 3, random: Callable[[float],float] | None = None, sleep=asyncio.sleep, clock=time.monotonic, model_name: str = 'configured',trace=None) -> None:
         if type(context_window) is not int or context_window<=0:
             raise ValueError('context capacity must be configured')
         if type(max_attempts) is not int or not 1<=max_attempts<=3:
@@ -76,7 +75,7 @@ class ModelRuntime:
                     await self.budgets.begin_attempt(handle,attempt_id,request.operation,self.model_name)
                     try:
                         with self.trace.span('model.attempt',{'run_id':handle.run_id,'step_id':request.operation,'attempt_id':attempt_id,'model':self.model_name}):
-                            response=await self.provider.complete(request)
+                            response=await cast(ChatModelPort,self.provider).complete(request)
                         await self.tick(handle)
                         usage=price_usage(response.usage,self.price) if response.usage is not None else None
                         await self.budgets.finish_attempt(handle,attempt_id,'succeeded',usage,response.model,response.request_id)

@@ -1,6 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
-from researchflow.infrastructure.storage.models import CheckpointRow,GraphWriteRow
+
+from researchflow.infrastructure.storage.models import CheckpointRow, GraphWriteRow
 from researchflow.ports.runtime import InputVersionMismatchError
 
 

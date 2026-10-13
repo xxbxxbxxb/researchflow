@@ -1,6 +1,6 @@
 """JSON graph checkpoints and pending writes with project/run ownership."""
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision='0008'
 down_revision='0007'

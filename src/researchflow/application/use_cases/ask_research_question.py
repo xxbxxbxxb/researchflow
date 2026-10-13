@@ -1,4 +1,4 @@
-from researchflow.ports.llm import LLMPort,LLMRequest
+from researchflow.ports.llm import LLMPort, LLMRequest
 
 MAX_QUESTION_LENGTH = 5000
 

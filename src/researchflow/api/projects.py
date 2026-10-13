@@ -1,6 +1,6 @@
 from uuid import uuid4
 
-from fastapi import APIRouter,Depends,Request
+from fastapi import APIRouter, Depends, Request
 
 from researchflow.api.auth import require_principal
 from researchflow.api.schemas import ProjectInput

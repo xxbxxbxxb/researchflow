@@ -14,6 +14,8 @@ from researchflow.infrastructure.llm.openai_compatible import (
     OpenAICompatibleLLM,
 )
 from researchflow.ports.llm import LLMRequest
+
+
 def make_config() ->OpenAICompatibleConfig:
     return OpenAICompatibleConfig(
         base_url="https://llm.example/v1",

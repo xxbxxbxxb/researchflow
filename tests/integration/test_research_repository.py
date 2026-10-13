@@ -2,9 +2,9 @@ from dataclasses import replace
 
 import pytest
 
-from researchflow.application.evidence import manual_evidence,anchor_evidence
+from researchflow.application.evidence import anchor_evidence, manual_evidence
 from researchflow.domain.errors import EvidenceConflict
-from researchflow.domain.projects import Project,TaskRecord
+from researchflow.domain.projects import Project, TaskRecord
 from researchflow.domain.research import Evidence
 
 
@@ -46,7 +46,7 @@ async def test_project_scoped_foreign_keys_and_queries(repository):
 @pytest.mark.asyncio
 async def test_report_survives_engine_recreation(repository,database):
     from researchflow.application.research import ResearchService
-    from researchflow.infrastructure.llm.demo_model import DemoCaseModel,CASES
+    from researchflow.infrastructure.llm.demo_model import CASES, DemoCaseModel
     from researchflow.infrastructure.storage.database import Database
     from researchflow.infrastructure.storage.repositories import ResearchRepository
     await repository.create_project(Project('p','Research'))

@@ -1,10 +1,10 @@
 import importlib
-from datetime import datetime, timezone
 from dataclasses import replace
+from datetime import datetime, timezone
 
 import pytest
 
-from researchflow.domain.sources import SourceSnapshot, SnapshotPage
+from researchflow.domain.sources import SnapshotPage, SourceSnapshot
 
 
 def test_chunks_keep_offsets_and_selection_removes_overlapping_ranges():

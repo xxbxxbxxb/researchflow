@@ -14,5 +14,39 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+  api:
+    build: .
+    image: researchflow-reference:local
+    command: ['sh','-c','alembic upgrade head && exec researchflow serve --host 0.0.0.0']
+    environment: &app-env
+      RF_DATABASE_URL: postgresql+psycopg://researchflow:${RF_POSTGRES_PASSWORD:?Set RF_POSTGRES_PASSWORD}@db:5432/researchflow
+      RF_PASSWORD_HASH: ${RF_PASSWORD_HASH:?Set RF_PASSWORD_HASH}
+      RF_MODE: ${RF_MODE:-demo}
+      RF_ALLOWED_ORIGINS: ${RF_ALLOWED_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000}
+      RF_LLM_BASE_URL: ${RF_LLM_BASE_URL:-}
+      RF_LLM_API_KEY: ${RF_LLM_API_KEY:-}
+      RF_LLM_MODEL: ${RF_LLM_MODEL:-}
+      RF_CONTEXT_WINDOW: ${RF_CONTEXT_WINDOW:-}
+      RF_SECURE_COOKIES: ${RF_SECURE_COOKIES:-false}
+      RF_PREVIEW_ENABLED: ${RF_PREVIEW_ENABLED:-false}
+    ports: ['127.0.0.1:${RF_BIND_PORT:-8000}:8000']
+    volumes: ['source-blobs:/data/blobs']
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD','python','-c','import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/health",timeout=3)']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  worker:
+    image: researchflow-reference:local
+    command: ['researchflow','worker']
+    environment: *app-env
+    volumes: ['source-blobs:/data/blobs']
+    depends_on:
+      api:
+        condition: service_healthy
 volumes:
   postgres-data:
+  source-blobs:

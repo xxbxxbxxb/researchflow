@@ -1,17 +1,24 @@
 from dataclasses import replace
 from uuid import uuid4
 
-from sqlalchemy import select,func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from researchflow.domain.claims import Verification,Claim
+from researchflow.domain.claims import Claim, Verification
 from researchflow.domain.errors import ProjectBoundaryError
-from researchflow.domain.knowledge import KnowledgeEntry,FollowUpDraft
+from researchflow.domain.knowledge import FollowUpDraft, KnowledgeEntry
 from researchflow.domain.reports import ResearchResult
 from researchflow.domain.runs import RunRecord
-from researchflow.infrastructure.storage.codec import decode_dataclass,jsonable
+from researchflow.infrastructure.storage.codec import decode_dataclass, jsonable
 from researchflow.infrastructure.storage.database import Database
-from researchflow.infrastructure.storage.models import VerificationRow,ClaimRow,ReportRow,KnowledgeRow,FollowUpRow,TaskRow
+from researchflow.infrastructure.storage.models import (
+    ClaimRow,
+    FollowUpRow,
+    KnowledgeRow,
+    ReportRow,
+    TaskRow,
+    VerificationRow,
+)
 from researchflow.infrastructure.storage.repositories import ResearchRepository
 from researchflow.ports.repositories import VerificationContext
 
@@ -125,8 +132,8 @@ class KnowledgeRepository:
             return tuple(decode_dataclass(FollowUpDraft,row.data) for row in rows)
 
     async def start_draft(self, project_id: str, draft_id: str, input_version: str, manifest: dict) -> RunRecord:
-        from researchflow.infrastructure.storage.run_repository import RunRepository
         from researchflow.infrastructure.storage.models import RunRow
+        from researchflow.infrastructure.storage.run_repository import RunRepository
         runs = RunRepository(self.database,self.research)
         async with self.database.session.begin() as session:
             row = (await session.scalars(select(FollowUpRow).where(FollowUpRow.project_id==project_id,FollowUpRow.draft_id==draft_id).with_for_update())).one_or_none()

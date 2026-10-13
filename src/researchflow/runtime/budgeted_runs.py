@@ -1,4 +1,4 @@
-from researchflow.domain.runs import RunHandle,RunState,StepOutput
+from researchflow.domain.runs import RunHandle, RunState, StepOutput
 from researchflow.runtime.model_runtime import ModelRuntime
 
 

@@ -1,11 +1,11 @@
 from dataclasses import replace
-from datetime import datetime,timezone
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from researchflow.application.evidence import digest
 from researchflow.application.reports import ReportBuilder
-from researchflow.domain.claims import Verification,VerificationStatus
-from researchflow.domain.knowledge import KnowledgeEntry,FollowUpDraft
+from researchflow.domain.claims import Verification, VerificationStatus
+from researchflow.domain.knowledge import FollowUpDraft, KnowledgeEntry
 from researchflow.domain.projects import TaskRecord
 from researchflow.domain.reports import ReportInputs
 from researchflow.ports.repositories import KnowledgePort

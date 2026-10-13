@@ -1,10 +1,12 @@
 import asyncio
+
 import pytest
 
-from researchflow.application.use_cases.ask_research_question import(
+from researchflow.application.use_cases.ask_research_question import (
     AskResearchQuestion,
 )
 from researchflow.infrastructure.llm.fake_llm import FakeLLM
+
 
 def test_ask_research_question_returns_fake_llm_response() ->None:
     llm =FakeLLM(response_text="fake answer")

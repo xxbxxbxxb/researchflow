@@ -1,13 +1,14 @@
-import importlib
 import asyncio
-import pytest
+import importlib
+
 import httpx
+import pytest
 
 from researchflow.domain.runs import RunHandle
-from researchflow.ports.model import ChatRequest,ChatMessage
-from researchflow.runtime.model_runtime import ModelRuntime
-from researchflow.runtime.budget import MemoryBudgetRepository
 from researchflow.infrastructure.llm.errors import LLMProviderUnavailableError
+from researchflow.ports.model import ChatMessage, ChatRequest
+from researchflow.runtime.budget import MemoryBudgetRepository
+from researchflow.runtime.model_runtime import ModelRuntime
 
 
 def modules():
@@ -107,4 +108,23 @@ async def test_stream_without_terminal_done_cannot_be_completed():
     runtime=ModelRuntime(provider,MemoryBudgetRepository(HANDLE),65536)
     with pytest.raises(stream.StreamInterruptedError):
         _=[d async for d in runtime.stream(HANDLE,REQUEST)]
+    assert provider.calls==1
+
+
+@pytest.mark.asyncio
+async def test_invalid_protocol_after_delivery_is_explicitly_incomplete():
+    stream,Delta=modules()
+    from researchflow.infrastructure.llm.errors import LLMProviderProtocolError
+    class Provider:
+        calls=0
+        async def stream(self,request):
+            self.calls+=1
+            yield Delta('text','partial')
+            raise LLMProviderProtocolError('invalid next frame')
+    provider=Provider()
+    runtime=ModelRuntime(provider,MemoryBudgetRepository(HANDLE),65536)
+    iterator=runtime.stream(HANDLE,REQUEST)
+    assert (await anext(iterator)).text=='partial'
+    with pytest.raises(stream.StreamInterruptedError):
+        await anext(iterator)
     assert provider.calls==1

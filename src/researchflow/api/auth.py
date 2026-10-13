@@ -3,11 +3,11 @@ import secrets
 from hashlib import sha256
 
 from argon2 import PasswordHasher
-from argon2.exceptions import VerificationError,InvalidHashError
-from fastapi import APIRouter,Request,Response,Depends
+from argon2.exceptions import InvalidHashError, VerificationError
+from fastapi import APIRouter, Depends, Request, Response
 
 from researchflow.api.errors import APIError
-from researchflow.api.schemas import LoginInput,AuthSessionResponse
+from researchflow.api.schemas import AuthSessionResponse, LoginInput
 from researchflow.domain.access import Principal
 from researchflow.infrastructure.storage.session_repository import LoginRateLimitedError
 

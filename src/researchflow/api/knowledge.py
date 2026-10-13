@@ -1,16 +1,16 @@
 from typing import Literal
-from fastapi import APIRouter,Depends,Request
+
+from fastapi import APIRouter, Depends, Request
 from pydantic import Field
 
-from researchflow.api.auth import require_project,require_principal
-from researchflow.api.schemas import StrictInput
-from researchflow.api.schemas import KnowledgeRecordResponse
-from researchflow.domain.knowledge import KnowledgeEntry,FollowUpDraft
-from researchflow.domain.claims import Verification
-from researchflow.domain.runs import RunRecord
-from researchflow.api.runs import policy_version
+from researchflow.api.auth import require_principal, require_project
 from researchflow.api.errors import APIError
+from researchflow.api.runs import policy_version
+from researchflow.api.schemas import KnowledgeRecordResponse, StrictInput
 from researchflow.domain.access import Principal
+from researchflow.domain.claims import Verification
+from researchflow.domain.knowledge import FollowUpDraft, KnowledgeEntry
+from researchflow.domain.runs import RunRecord
 from researchflow.infrastructure.storage.codec import jsonable
 
 router = APIRouter(prefix='/api/projects/{project_id}',tags=['knowledge'],dependencies=[Depends(require_project)])

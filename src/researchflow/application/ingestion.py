@@ -3,7 +3,14 @@ from hashlib import sha256
 from pathlib import PurePath
 
 from researchflow.domain.sources import SourceSnapshot
-from researchflow.ports.sources import BlobPort, FetcherPort, ParserPort, PreparedSource, SnapshotRepository, SourceInput
+from researchflow.ports.sources import (
+    BlobPort,
+    FetcherPort,
+    ParserPort,
+    PreparedSource,
+    SnapshotRepository,
+    SourceInput,
+)
 
 
 class IngestSource:

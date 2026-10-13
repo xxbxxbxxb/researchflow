@@ -1,11 +1,18 @@
 import asyncio
-from collections.abc import Awaitable,Callable
+from collections.abc import Awaitable, Callable
+from contextlib import suppress
+from typing import Literal
+
 from researchflow.domain.runs import RunHandle
 from researchflow.domain.usage import BudgetExceededError
-from contextlib import suppress
-from researchflow.ports.telemetry import NullTrace,RuntimeFailure
-
-from researchflow.ports.runtime import RunRepositoryPort, WorkflowPort, RunCancelledError, RunOwnershipLostError, InputVersionMismatchError
+from researchflow.ports.runtime import (
+    InputVersionMismatchError,
+    RunCancelledError,
+    RunOwnershipLostError,
+    RunRepositoryPort,
+    WorkflowPort,
+)
+from researchflow.ports.telemetry import NullTrace, RuntimeFailure
 
 
 class Worker:
@@ -53,7 +60,7 @@ class Worker:
                 await self.runs.finish(handle,'interrupted','worker_shutdown')
             raise
         except Exception as exc:
-            kind='budget' if isinstance(exc,BudgetExceededError) else 'protocol' if 'Protocol' in type(exc).__name__ else 'provider' if 'Provider' in type(exc).__name__ else 'persistence'
+            kind: Literal['budget','protocol','provider','persistence']='budget' if isinstance(exc,BudgetExceededError) else 'protocol' if 'Protocol' in type(exc).__name__ else 'provider' if 'Provider' in type(exc).__name__ else 'persistence'
             self.trace.record_failure(RuntimeFailure(kind,handle.run_id,'workflow',type(exc).__name__))
             with suppress(RunOwnershipLostError,RunCancelledError):
                 if hasattr(self.runs,'record_failure'):

@@ -1,19 +1,20 @@
 import json
-from uuid import uuid4
 from dataclasses import asdict
-from fastapi import APIRouter,Depends,Request
+from uuid import uuid4
+
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 
 from researchflow.api.auth import require_project
 from researchflow.api.errors import APIError
 from researchflow.domain.runs import RunHandle
-from researchflow.infrastructure.llm.streaming import OpenAIStreamModel,DemoStreamModel
+from researchflow.domain.usage import BudgetExceededError
 from researchflow.infrastructure.llm.openai_compatible import OpenAICompatibleConfig
-from researchflow.ports.model import ChatRequest,ChatMessage
+from researchflow.infrastructure.llm.streaming import DemoStreamModel, OpenAIStreamModel
+from researchflow.ports.model import ChatMessage, ChatRequest
+from researchflow.ports.runtime import RunCancelledError, RunOwnershipLostError
 from researchflow.runtime.model_runtime import ModelRuntime
 from researchflow.runtime.streaming import StreamInterruptedError
-from researchflow.domain.usage import BudgetExceededError
-from researchflow.ports.runtime import RunOwnershipLostError,RunCancelledError
 
 router=APIRouter(tags=['preview'])
 

@@ -11,10 +11,11 @@ async def database(tmp_path):
     import importlib
     if importlib.util.find_spec('researchflow.infrastructure.storage.database') is None:
         pytest.fail('PostgreSQL repository is not implemented')
-    from researchflow.infrastructure.storage.database import Database
-    from researchflow.infrastructure.storage.models import Base
     from sqlalchemy import text
     from sqlalchemy.engine import make_url
+
+    from researchflow.infrastructure.storage.database import Database
+    from researchflow.infrastructure.storage.models import Base
     if not (make_url(url).database or '').endswith('_test'):
         pytest.fail('Database fixture requires a dedicated database name ending in _test')
     db = Database(url)
