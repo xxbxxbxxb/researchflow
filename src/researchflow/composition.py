@@ -22,10 +22,12 @@ from researchflow.infrastructure.storage.budget_repository import BudgetReposito
 
 
 class ConfiguredWorkflow:
-    def __init__(self, runs, research, retriever, model, mode, context_window: int | None = None, price=None):
+    def __init__(self, runs, research, retriever, model, mode, context_window: int | None = None, price=None,trace=None):
         self.runs,self.research,self.retriever,self.model,self.mode=runs,research,retriever,model,mode
         self.context_window,self.price=context_window,price
         self.runtimes={}
+        from researchflow.ports.telemetry import NullTrace
+        self.trace=trace or NullTrace()
 
     async def tick(self, handle):
         runtime=self.runtimes.get((handle.run_id,handle.epoch))
@@ -39,7 +41,7 @@ class ConfiguredWorkflow:
         model=DemoCaseModel(record.input_manifest.get('demo_case','supported')) if self.mode=='demo' else self.model
         store=BudgetRepository(self.runs.database,self.runs)
         context=self.context_window if self.mode=='live' else 65536
-        runtime=ModelRuntime(model,store,context_window=context,price=self.price,model_name=record.input_manifest.get('model_version','configured'))
+        runtime=ModelRuntime(model,store,context_window=context,price=self.price,model_name=record.input_manifest.get('model_version','configured'),trace=self.trace)
         key=(handle.run_id,handle.epoch)
         self.runtimes[key]=runtime
         try:
@@ -61,7 +63,7 @@ class ConfiguredWorkflow:
                 ingestion=IngestSource(self.research,BlobStore(Path(os.getenv('RF_BLOB_ROOT','.researchflow-data/blobs'))),DocumentParser(),fetcher)
                 registry=ToolRegistry(self.runs,store,ArxivSearch(fetcher),ingestion,self.research,self.retriever)
                 collector=MinimalReAct(BoundChatModel(runtime,handle),registry,store,Principal('owner',(handle.project_id,)))
-            return await driver(BudgetedRuns(self.runs,runtime),self.research,self.retriever,BoundChatModel(runtime,handle),self.mode,collector).execute(handle)
+            return await driver(BudgetedRuns(self.runs,runtime),self.research,self.retriever,BoundChatModel(runtime,handle),self.mode,collector,trace=self.trace).execute(handle)
         finally:
             self.runtimes.pop(key,None)
 
@@ -80,8 +82,11 @@ async def worker_resources(mode: Literal['demo','live'], owner_id: str | None = 
         model = OpenAIChatModel(client,OpenAICompatibleConfig(os.environ['RF_LLM_BASE_URL'],os.environ['RF_LLM_API_KEY'],os.environ['RF_LLM_MODEL'])) if mode == 'live' else DemoCaseModel()
         research = ResearchRepository(database)
         runs = RunRepository(database,research)
-        workflow = ConfiguredWorkflow(runs,research,PostgresRetriever(database),model,mode,context_window=int(os.environ['RF_CONTEXT_WINDOW']) if mode=='live' else None)
-        yield Worker(runs,workflow,owner_id or 'worker-' + uuid4().hex,on_heartbeat=workflow.tick)
+        from researchflow.infrastructure.telemetry.otel import OpenTelemetryTrace
+        trace=OpenTelemetryTrace(endpoint=os.getenv('RF_OTLP_TRACES_ENDPOINT'))
+        stack.callback(trace.close)
+        workflow = ConfiguredWorkflow(runs,research,PostgresRetriever(database),model,mode,context_window=int(os.environ['RF_CONTEXT_WINDOW']) if mode=='live' else None,trace=trace)
+        yield Worker(runs,workflow,owner_id or 'worker-' + uuid4().hex,on_heartbeat=workflow.tick,trace=trace)
 
 
 @dataclass

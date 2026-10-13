@@ -275,6 +275,14 @@ class RunRepository:
             row = await session.get(ReviewRow,(project_id,run_id))
             return decode_dataclass(ReviewDecision,row.decision) if row else None
 
+    async def record_failure(self,handle,kind,exc):
+        import traceback
+        async with self.database.session.begin() as session:
+            row=await self.fence(session,handle)
+            frames=traceback.extract_tb(exc.__traceback__)[-6:]
+            # Function names/line numbers aid diagnostics without messages, locals or raw source.
+            self.event(session,row,'failure',await self.now(session),{'failure_kind':kind,'error_class':type(exc).__name__,'locations':[f'{f.name}:{f.lineno}' for f in frames]})
+
     async def get_tool(self, handle: RunHandle, call_key: str) -> ToolResult | None:
         async with self.database.session.begin() as session:
             await self.fence(session,handle)

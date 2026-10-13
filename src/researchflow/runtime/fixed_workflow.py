@@ -11,15 +11,17 @@ from researchflow.ports.model import ChatModelPort
 from researchflow.ports.repositories import ResearchReadRepository
 from researchflow.ports.retrieval import Retriever, RetrievalResult, RetrievalCandidate
 from researchflow.ports.runtime import RunRepositoryPort, InputVersionMismatchError
+from researchflow.ports.telemetry import NullTrace
 
 PHASES = ('collect','retrieve','evidence','claims','verify','report')
 WORKFLOW_VERSION = 'fixed-v1'
 
 
 class FixedWorkflow:
-    def __init__(self, runs: RunRepositoryPort, research: ResearchReadRepository, retriever: Retriever, model: ChatModelPort, execution_mode: Literal['demo','live'] = 'live', collector=None) -> None:
+    def __init__(self, runs: RunRepositoryPort, research: ResearchReadRepository, retriever: Retriever, model: ChatModelPort, execution_mode: Literal['demo','live'] = 'live', collector=None,trace=None) -> None:
         self.runs,self.research,self.retriever,self.model,self.execution_mode = runs,research,retriever,model,execution_mode
         self.collector=collector
+        self.trace=trace or NullTrace()
 
     workflow_version=WORKFLOW_VERSION
 
@@ -33,6 +35,10 @@ class FixedWorkflow:
         return record,task
 
     async def step(self,handle: RunHandle,phase: str):
+        with self.trace.span('phase',{'run_id':handle.run_id,'task_id':handle.task_id,'project_id':handle.project_id,'step_id':phase,'epoch':handle.epoch}):
+            return await self._step(handle,phase)
+
+    async def _step(self,handle: RunHandle,phase: str):
         record,task=await self.inputs(handle)
         receipt=await self.runs.get_receipt(handle,phase)
         if receipt:

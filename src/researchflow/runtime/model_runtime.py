@@ -13,11 +13,12 @@ from researchflow.infrastructure.llm.errors import LLMProviderRateLimitError,LLM
 from researchflow.ports.model import ChatModelPort,ChatRequest,ChatResponse
 from researchflow.ports.runtime import RunOwnershipLostError,RunCancelledError
 from researchflow.runtime.budget import BudgetExceededError,PriceConfig,price_usage
+from researchflow.ports.telemetry import NullTrace
 
 
 class ModelRuntime:
     """One budget/timeout/retry layer; delegates make one raw request."""
-    def __init__(self, provider: ChatModelPort, budgets, context_window: int | None, price: PriceConfig | None = None, max_attempts: int = 3, random: Callable[[float],float] | None = None, sleep=asyncio.sleep, clock=time.monotonic, model_name: str = 'configured') -> None:
+    def __init__(self, provider: ChatModelPort, budgets, context_window: int | None, price: PriceConfig | None = None, max_attempts: int = 3, random: Callable[[float],float] | None = None, sleep=asyncio.sleep, clock=time.monotonic, model_name: str = 'configured',trace=None) -> None:
         if type(context_window) is not int or context_window<=0:
             raise ValueError('context capacity must be configured')
         if type(max_attempts) is not int or not 1<=max_attempts<=3:
@@ -26,6 +27,7 @@ class ModelRuntime:
         self.max_attempts,self.random,self.sleep,self.clock,self.model_name=max_attempts,random or (lambda high:random_module.uniform(0,high)),sleep,clock,model_name
         self.ticks:dict[tuple[str,int],float]={}
         self.tick_locks:dict[tuple[str,int],asyncio.Lock]={}
+        self.trace=trace or NullTrace()
 
     async def tick(self, handle: RunHandle):
         key=(handle.run_id,handle.epoch)
@@ -48,6 +50,10 @@ class ModelRuntime:
             raise BudgetExceededError('context capacity would be exceeded; narrow the selected material','context')
 
     async def complete(self, handle: RunHandle, request: ChatRequest) -> ChatResponse:
+        with self.trace.span('model',{'run_id':handle.run_id,'task_id':handle.task_id,'project_id':handle.project_id,'step_id':request.operation,'epoch':handle.epoch}):
+            return await self._complete(handle,request)
+
+    async def _complete(self, handle: RunHandle, request: ChatRequest) -> ChatResponse:
         self.validate_context(request)
         snapshot=await self.tick(handle)
         remaining=snapshot.limits.active_timeout_seconds-snapshot.active_elapsed_seconds
@@ -69,7 +75,8 @@ class ModelRuntime:
                     attempt_id=uuid4().hex
                     await self.budgets.begin_attempt(handle,attempt_id,request.operation,self.model_name)
                     try:
-                        response=await self.provider.complete(request)
+                        with self.trace.span('model.attempt',{'run_id':handle.run_id,'step_id':request.operation,'attempt_id':attempt_id,'model':self.model_name}):
+                            response=await self.provider.complete(request)
                         await self.tick(handle)
                         usage=price_usage(response.usage,self.price) if response.usage is not None else None
                         await self.budgets.finish_attempt(handle,attempt_id,'succeeded',usage,response.model,response.request_id)
@@ -103,6 +110,15 @@ class ModelRuntime:
             if slot:
                 with suppress(RunOwnershipLostError,RunCancelledError):
                     await self.budgets.release_slot(handle,operation_id)
+
+    async def stream(self,handle: RunHandle,request: ChatRequest):
+        from researchflow.runtime.streaming import stream_model
+        iterator=stream_model(self,handle,request)
+        try:
+            async for delta in iterator:
+                yield delta
+        finally:
+            await iterator.aclose()
 
 
 class BoundChatModel:

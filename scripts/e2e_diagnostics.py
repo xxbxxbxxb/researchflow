@@ -1,5 +1,8 @@
 """Bounded diagnostics and actual browser images from synthetic CI fixtures."""
 import base64
+import asyncio
+import os
+import sys
 from pathlib import Path
 
 root=Path(__file__).resolve().parents[1]
@@ -17,3 +20,24 @@ for name in ('e2e-api.log','e2e-worker.log'):
     if file.exists():
         print('RF_SERVICE_LOG '+name)
         print('\n'.join(file.read_text().splitlines()[-80:]))
+
+async def failures():
+    sys.path.insert(0,str(root/'src'))
+    from researchflow.infrastructure.storage.database import Database
+    from sqlalchemy import text
+    url=os.getenv('RF_TEST_DATABASE_URL')
+    if not url:
+        return
+    db=Database(url)
+    try:
+        async with db.session() as session:
+            rows=await session.execute(text("SELECT kind,data FROM run_events WHERE kind IN ('failure','failed') ORDER BY event_id DESC LIMIT 10"))
+            for kind,data in rows:
+                print('RF_FAILURE',kind,data)
+    finally:
+        await db.close()
+
+try:
+    asyncio.run(failures())
+except Exception:
+    print('RF_FAILURE diagnostics unavailable')

@@ -38,3 +38,15 @@ class ChatResponse:
 
 class ChatModelPort(Protocol):
     async def complete(self, request: ChatRequest) -> ChatResponse: ...
+
+
+@dataclass(frozen=True,slots=True)
+class ModelDelta:
+    kind: Literal['text','tool_call','usage','done']
+    text: str = ''
+    tool_call: ToolCall | None = None
+    usage: ModelUsage | None = None
+
+
+class StreamModelPort(Protocol):
+    def stream(self,request: ChatRequest) -> AsyncIterator[ModelDelta]: ...
