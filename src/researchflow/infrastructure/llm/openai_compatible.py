@@ -1,4 +1,6 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from collections.abc import Callable
 
 import httpx
 
@@ -10,18 +12,20 @@ from researchflow.infrastructure.llm.errors import(
     LLMProviderUnavailableError,
 )
 from researchflow.ports.llm import LLMRequest,LLMResponse
+from researchflow.infrastructure.llm.retry_after import parse_retry_after
 
 @dataclass(frozen=True)
 class OpenAICompatibleConfig:
     base_url: str
-    api_key: str
+    api_key: str = field(repr=False)
     model: str
 
 
 class OpenAICompatibleLLM:
-    def __init__(self, client: httpx.AsyncClient, config: OpenAICompatibleConfig) -> None:
+    def __init__(self, client: httpx.AsyncClient, config: OpenAICompatibleConfig, clock: Callable[[], datetime] | None = None) -> None:
         self._client = client
         self._config = config
+        self._clock = clock or (lambda: datetime.now(UTC))
         
     async def generate(
         self,
@@ -70,24 +74,8 @@ class OpenAICompatibleLLM:
             )
         if response.status_code == 429:
 
-            retry_after_seconds: float | None = None
-            retry_after = response.headers.get(
-                "Retry-After"
-            )
-        
-            if retry_after is not None:
-                try:
-                    parsed_retry_after = float(
-                        retry_after
-                    )
-                except ValueError:
-                    pass
-                else:
-                    if parsed_retry_after >= 0:
-                        retry_after_seconds = (
-                            parsed_retry_after
-                        )
-        
+            retry_after_seconds = parse_retry_after(response.headers.get("Retry-After"), self._clock())
+
             raise LLMProviderRateLimitError(
                 "LLM provider rate limited the request",
                 retry_after_seconds=retry_after_seconds,

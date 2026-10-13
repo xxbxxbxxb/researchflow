@@ -1,6 +1,7 @@
 from collections.abc import Callable,Awaitable
 import asyncio
 import random
+import math
 from researchflow.infrastructure.llm.errors import (
     LLMProviderRateLimitError,
     LLMProviderUnavailableError,
@@ -36,7 +37,7 @@ class RetryLLM:
             raise ValueError(
                 "max_attempts must be at least 1"
             )
-        if base_delay_seconds < 0:
+        if not math.isfinite(base_delay_seconds) or base_delay_seconds < 0:
             raise ValueError(
                 "base_delay_seconds must be non-negative"
             )

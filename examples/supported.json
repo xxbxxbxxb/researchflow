@@ -1,0 +1,12 @@
+{
+  "demo_case": "supported",
+  "question": "合成研究的样本量是多少？",
+  "evidence": [
+    {
+      "id": "e1",
+      "source": "Synthetic demonstration source",
+      "locator": "paragraph 1",
+      "text": "The synthetic study used a sample size of 12, only for Chinese text."
+    }
+  ]
+}

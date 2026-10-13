@@ -1,0 +1,12 @@
+{
+  "demo_case": "invalid-citation",
+  "question": "演示非法引用被阻止。",
+  "evidence": [
+    {
+      "id": "e1",
+      "source": "Synthetic demonstration source",
+      "locator": "paragraph 1",
+      "text": "The sample size was 12."
+    }
+  ]
+}

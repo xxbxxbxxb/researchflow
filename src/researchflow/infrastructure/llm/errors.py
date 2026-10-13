@@ -1,4 +1,7 @@
-class LLMProviderError(RuntimeError):
+from researchflow.ports.model import ModelCallError
+
+
+class LLMProviderError(ModelCallError):
     """Base error for failures at the LLM provider boundary."""
     
 class LLMProviderRequestError(LLMProviderError):

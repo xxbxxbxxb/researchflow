@@ -1,0 +1,12 @@
+{
+  "demo_case": "contradicted",
+  "question": "样本量为12的说法是否受到材料支持？",
+  "evidence": [
+    {
+      "id": "e1",
+      "source": "Synthetic demonstration source",
+      "locator": "paragraph 1",
+      "text": "The synthetic study used a sample size of 24."
+    }
+  ]
+}
