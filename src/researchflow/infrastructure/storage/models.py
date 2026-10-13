@@ -257,3 +257,13 @@ class OperationSlotRow(Base):
     epoch: Mapped[int] = mapped_column(Integer)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     __table_args__ = (ForeignKeyConstraint(['project_id','run_id'],['workflow_runs.project_id','workflow_runs.run_id']),)
+
+
+class ToolRow(Base):
+    __tablename__ = 'tool_receipts'
+    project_id: Mapped[str] = mapped_column(String(200),primary_key=True)
+    run_id: Mapped[str] = mapped_column(String(200),primary_key=True)
+    call_key: Mapped[str] = mapped_column(String(64),primary_key=True)
+    output: Mapped[dict[str,Any]] = mapped_column(JSON)
+    committed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (ForeignKeyConstraint(['project_id','run_id'],['workflow_runs.project_id','workflow_runs.run_id']),)
