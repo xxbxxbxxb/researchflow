@@ -145,3 +145,31 @@ async def test_context_capacity_and_versioned_cost_are_explicit(database,reposit
     with pytest.raises(budget.BudgetExceededError,match='context'):
         await runtime.complete(handle,replace(REQUEST,messages=(ChatMessage('user','x'*100000),)))
     assert provider.calls==1
+
+
+@pytest.mark.asyncio
+async def test_production_workflow_routes_all_model_phases_through_durable_budget(database,repository):
+    runtime_module,budget,storage=modules()
+    from researchflow.composition import ConfiguredWorkflow
+    from researchflow.infrastructure.llm.demo_model import DemoCaseModel,CASES
+    from researchflow.infrastructure.storage.retrieval import PostgresRetriever
+    from researchflow.runtime.worker import Worker
+    from researchflow.application.evidence import manual_evidence
+    from researchflow.domain.research import Evidence
+    from researchflow.infrastructure.storage.run_repository import RunRepository
+    await repository.create_project(Project('p','Production budget'))
+    snapshot,_=manual_evidence('p',Evidence('e','synthetic','p1',CASES['supported']['source']))
+    await repository.save_snapshot(snapshot)
+    retriever=PostgresRetriever(database)
+    await retriever.index_snapshot(snapshot)
+    await repository.save_task(TaskRecord('t','p','synthetic sample size',(snapshot.snapshot_id,)))
+    runs=RunRepository(database,repository)
+    record=await runs.enqueue('t','p','fixed-v1',input_manifest={'execution_mode':'demo','demo_case':'supported'})
+    workflow=ConfiguredWorkflow(runs,repository,retriever,DemoCaseModel(),'demo')
+    assert await Worker(runs,workflow,'production-worker').run_once()
+    assert (await runs.get_run('p',record.run_id)).state=='succeeded'
+    saved=await storage.BudgetRepository(database,runs).read_snapshot('p',record.run_id)
+    assert saved is not None,'production entrypoint must not bypass the central runtime'
+    assert saved.model_calls_used==2
+    assert saved.active_elapsed_seconds>0
+    assert len(await storage.BudgetRepository(database,runs).list_usage('p',record.run_id))==2
