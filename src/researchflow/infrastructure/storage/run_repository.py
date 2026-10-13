@@ -4,18 +4,23 @@ from datetime import timedelta
 from typing import Any, cast
 from uuid import uuid4
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from researchflow.application.claims import CLAIM_PROMPT_VERSION
-from researchflow.domain.runs import RunHandle, RunRecord, RunState, StepOutput, StepReceipt
+from researchflow.domain.runs import RunHandle, RunRecord, RunState, StepOutput, StepReceipt, LeaseState
 from researchflow.domain.errors import ProjectBoundaryError
 from researchflow.infrastructure.storage.codec import decode_dataclass, jsonable
 from researchflow.infrastructure.storage.database import Database
-from researchflow.infrastructure.storage.models import RunRow, StepRow, EventRow, TaskRow, ClaimRow, SnapshotRow, ProjectRow, IdempotencyRow, ReviewRow, BudgetRow
+from researchflow.infrastructure.storage.models import RunRow, StepRow, EventRow, TaskRow, ClaimRow, SnapshotRow, ProjectRow, IdempotencyRow, ReviewRow, BudgetRow, OperationSlotRow
 from researchflow.infrastructure.storage.repositories import ResearchRepository
 from researchflow.ports.runtime import RunOwnershipLostError, RunCancelledError, InputVersionMismatchError
 from researchflow.domain.runs import ReviewDecision
+from researchflow.domain.tool_calls import ToolResult
+from researchflow.infrastructure.storage.models import ToolRow, FollowUpRow
+from researchflow.application.retrieval import chunk_snapshot
+from researchflow.infrastructure.storage.models import ChunkRow
+from sqlalchemy.dialects.postgresql import insert
 
 
 class RunRepository:
@@ -104,11 +109,38 @@ class RunRepository:
             raise RunCancelledError('research cancellation was requested')
         return row
 
-    async def heartbeat(self, handle: RunHandle) -> None:
+    async def heartbeat(self, handle: RunHandle) -> LeaseState:
         async with self.database.session.begin() as session:
             row = await self.fence(session,handle)
             now = await self.now(session)
             row.lease_until,row.updated_at = now+timedelta(seconds=self.lease_seconds),now
+            return LeaseState(handle,row.lease_until)
+
+    async def recover_expired(self, owner_id: str) -> RunHandle | None:
+        if not owner_id.strip():
+            raise ValueError('owner_id is required')
+        async with self.database.session.begin() as session:
+            rows = (await session.scalars(select(RunRow).where(
+                RunRow.state=='running',RunRow.lease_until <= func.clock_timestamp()
+            ).order_by(RunRow.created_at).with_for_update(skip_locked=True).limit(100))).all()
+            for row in rows:
+                now = await self.now(session)
+                budget = await session.get(BudgetRow,(row.project_id,row.run_id))
+                if budget is not None and budget.active:
+                    # Unknown crash duration is conservatively charged to the old lease.
+                    elapsed = max(0.0,(row.lease_until-budget.active_updated_at).total_seconds())
+                    budget.active_elapsed_seconds = min(float(budget.limits['active_timeout_seconds']),budget.active_elapsed_seconds+elapsed)
+                    budget.active_updated_at,budget.active = now,False
+                await session.execute(delete(OperationSlotRow).where(OperationSlotRow.project_id==row.project_id,OperationSlotRow.run_id==row.run_id))
+                if row.cancel_requested:
+                    row.state,row.owner_id,row.lease_until,row.updated_at = 'cancelled',None,None,now
+                    self.event(session,row,'cancelled',now)
+                    continue
+                row.owner_id,row.epoch,row.updated_at = owner_id,row.epoch+1,now
+                row.lease_until = now+timedelta(seconds=self.lease_seconds)
+                self.event(session,row,'recovered',now,{'epoch':row.epoch})
+                return RunHandle(row.run_id,row.project_id,row.task_id,row.epoch,owner_id)
+            return None
 
     async def get_run(self, project_id: str, run_id: str) -> RunRecord | None:
         async with self.database.session() as session:
@@ -180,6 +212,9 @@ class RunRepository:
             now = await self.now(session)
             budget=await session.get(BudgetRow,(handle.project_id,handle.run_id))
             if budget is not None:
+                if budget.active:
+                    elapsed=max(0.0,(now-budget.active_updated_at).total_seconds())
+                    budget.active_elapsed_seconds=min(float(budget.limits['active_timeout_seconds']),budget.active_elapsed_seconds+elapsed)
                 budget.active=False
                 budget.active_updated_at=now
             row.state,row.error_code,row.updated_at,row.owner_id,row.lease_until = state,error_code,now,None,None
@@ -239,3 +274,39 @@ class RunRepository:
         async with self.database.session() as session:
             row = await session.get(ReviewRow,(project_id,run_id))
             return decode_dataclass(ReviewDecision,row.decision) if row else None
+
+    async def get_tool(self, handle: RunHandle, call_key: str) -> ToolResult | None:
+        async with self.database.session.begin() as session:
+            await self.fence(session,handle)
+            row=await session.get(ToolRow,(handle.project_id,handle.run_id,call_key))
+            return decode_dataclass(ToolResult,row.output) if row else None
+
+    async def commit_tool(self, handle: RunHandle, call_key: str, result: ToolResult) -> ToolResult:
+        async with self.database.session.begin() as session:
+            run=await self.fence(session,handle)
+            old=await session.get(ToolRow,(handle.project_id,handle.run_id,call_key))
+            if old:
+                return decode_dataclass(ToolResult,old.output)
+            for snapshot in result.snapshots:
+                if snapshot.project_id != handle.project_id:
+                    raise ProjectBoundaryError('tool source crosses project boundary')
+                await self.research.write_snapshot(session,snapshot)
+                # Lexical derived chunks join the same fenced snapshot/receipt transaction.
+                for chunk in chunk_snapshot(snapshot):
+                    values={k:getattr(chunk,k) for k in ('project_id','chunk_id','snapshot_id','page','start','end','text')}
+                    await session.execute(insert(ChunkRow).values(**values).on_conflict_do_nothing(index_elements=['project_id','chunk_id']))
+            if result.follow_up:
+                draft=result.follow_up
+                if (draft.project_id,draft.parent_task_id)!=(handle.project_id,handle.task_id) or draft.started_run_id is not None:
+                    raise ProjectBoundaryError('tool can only propose a draft for its own task')
+                for cid in draft.claim_ids:
+                    claim=await session.get(ClaimRow,(handle.project_id,cid))
+                    if claim is None or claim.task_id != handle.task_id:
+                        raise ProjectBoundaryError('draft claim is outside current task')
+                session.add(FollowUpRow(project_id=draft.project_id,draft_id=draft.draft_id,parent_task_id=draft.parent_task_id,started_run_id=None,data=jsonable(draft)))
+            now=await self.now(session)
+            session.add(ToolRow(project_id=handle.project_id,run_id=handle.run_id,call_key=call_key,output=jsonable(result),committed_at=now))
+            self.event(session,run,'tool_completed',now,{'name':result.name,'error_code':result.error_code})
+            await session.flush()
+            await self.fence(session,handle)
+            return result

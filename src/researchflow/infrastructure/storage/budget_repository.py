@@ -38,6 +38,8 @@ class BudgetRepository:
         async with self.database.session.begin() as session:
             row=await self.row_in(session,handle)
             # The stored limits and consumed counters remain authoritative on recovery.
+            if row.active_epoch != handle.epoch or not row.active:
+                row.active_updated_at = await self.runs.now(session)
             row.active_epoch,row.active=handle.epoch,True
             return self.value(row)
 

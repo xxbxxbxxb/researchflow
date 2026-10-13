@@ -22,6 +22,8 @@ class Worker:
     async def run_once(self) -> bool:
         handle = await self.runs.claim_next(self.owner_id)
         if handle is None:
+            handle = await self.runs.recover_expired(self.owner_id)
+        if handle is None:
             return False
         execution = asyncio.create_task(self.workflow.execute(handle))
         heartbeat = asyncio.create_task(self.pulse(handle))
@@ -32,6 +34,8 @@ class Worker:
             outcome = await execution
             await self.runs.finish(handle,outcome.state)
         except RunCancelledError:
+            execution.cancel()
+            await asyncio.gather(execution,return_exceptions=True)
             with suppress(RunOwnershipLostError):
                 await self.runs.finish(handle,'cancelled')
         except RunOwnershipLostError:
