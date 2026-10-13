@@ -18,6 +18,12 @@ from researchflow.infrastructure.storage.codec import jsonable
 
 
 async def run(args):
+    if args.command == 'worker':
+        from researchflow.composition import worker_resources
+        async with worker_resources(args.mode) as worker:
+            if args.once:
+                return {'processed':await worker.run_once(),'execution_mode':args.mode},0
+            await worker.run_forever()
     if args.command == 'demo':
         case = args.case
         fixture = CASES[case]
@@ -55,6 +61,10 @@ def main() -> int:
     research.add_argument('--input',required=True)
     research.add_argument('--mode',choices=['live','demo'],default='live')
     research.add_argument('--format',choices=['json','markdown'],default='markdown')
+    worker = commands.add_parser('worker',help='Execute durable database runs')
+    worker.add_argument('--once',action='store_true')
+    worker.add_argument('--mode',choices=['live','demo'],default='live')
+    worker.set_defaults(format='json')
     args = parser.parse_args()
     try:
         result,code = asyncio.run(run(args))

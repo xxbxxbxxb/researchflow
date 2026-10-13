@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import JSON, DateTime, ForeignKey, ForeignKeyConstraint, Integer, String, Text, func
+from sqlalchemy import JSON, DateTime, ForeignKey, ForeignKeyConstraint, Integer, String, Text, func, Boolean, BigInteger, Identity
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -118,3 +118,42 @@ class ReportRow(Base):
     data: Mapped[dict[str,Any]] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     __table_args__ = (ForeignKeyConstraint(['project_id','task_id'],['research_tasks.project_id','research_tasks.task_id']),)
+
+
+class RunRow(Base):
+    __tablename__ = 'workflow_runs'
+    project_id: Mapped[str] = mapped_column(String(200),primary_key=True)
+    run_id: Mapped[str] = mapped_column(String(200),primary_key=True)
+    task_id: Mapped[str] = mapped_column(String(200))
+    state: Mapped[str] = mapped_column(String(30),index=True)
+    epoch: Mapped[int] = mapped_column(Integer,default=0)
+    owner_id: Mapped[str | None] = mapped_column(String(200),nullable=True)
+    lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True),nullable=True)
+    cancel_requested: Mapped[bool] = mapped_column(Boolean,default=False)
+    input_version: Mapped[str] = mapped_column(String(200))
+    input_manifest: Mapped[dict[str,Any]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    error_code: Mapped[str | None] = mapped_column(String(100),nullable=True)
+    __table_args__ = (ForeignKeyConstraint(['project_id','task_id'],['research_tasks.project_id','research_tasks.task_id']),)
+
+
+class StepRow(Base):
+    __tablename__ = 'step_receipts'
+    project_id: Mapped[str] = mapped_column(String(200),primary_key=True)
+    run_id: Mapped[str] = mapped_column(String(200),primary_key=True)
+    step_key: Mapped[str] = mapped_column(String(200),primary_key=True)
+    output: Mapped[dict[str,Any]] = mapped_column(JSON)
+    committed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (ForeignKeyConstraint(['project_id','run_id'],['workflow_runs.project_id','workflow_runs.run_id']),)
+
+
+class EventRow(Base):
+    __tablename__ = 'run_events'
+    event_id: Mapped[int] = mapped_column(BigInteger,Identity(),primary_key=True)
+    project_id: Mapped[str] = mapped_column(String(200))
+    run_id: Mapped[str] = mapped_column(String(200))
+    kind: Mapped[str] = mapped_column(String(100))
+    data: Mapped[dict[str,Any]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (ForeignKeyConstraint(['project_id','run_id'],['workflow_runs.project_id','workflow_runs.run_id']),)

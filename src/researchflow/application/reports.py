@@ -45,4 +45,4 @@ class ReportBuilder:
         for eid in used:
             item = evidence[eid]
             lines += [f'- [{aliases[eid]}](/api/evidence/{quote(eid,safe="")}) {markdown_text(item.evidence.source)}，{markdown_text(item.evidence.locator)}']
-        return ReportVersion(uuid4().hex,data.project_id,data.task_id,data.run_id,1,'\n'.join(lines),supported,other,used,data.execution_mode,datetime.now(UTC))
+        return ReportVersion(uuid4().hex,data.project_id,data.task_id,data.run_id,1,'\n'.join(lines),supported,other,used,data.execution_mode,datetime.now(UTC),data.retrieval_mode)

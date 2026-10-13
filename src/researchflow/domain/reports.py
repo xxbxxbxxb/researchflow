@@ -17,6 +17,7 @@ class ReportInputs:
     unresolved_questions: tuple[str, ...]
     question: str = ''
     execution_mode: Literal['demo', 'live'] = 'live'
+    retrieval_mode: Literal['manual', 'lexical', 'hybrid'] = 'manual'
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,6 +33,7 @@ class ReportVersion:
     source_evidence_ids: tuple[str, ...]
     execution_mode: Literal['demo', 'live']
     created_at: datetime
+    retrieval_mode: Literal['manual', 'lexical', 'hybrid'] = 'manual'
 
 
 @dataclass(frozen=True, slots=True)
