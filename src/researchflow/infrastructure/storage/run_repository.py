@@ -222,7 +222,10 @@ class RunRepository:
                 raise ValueError('run is not awaiting review')
             now = await self.now(session)
             session.add(ReviewRow(project_id=project_id,run_id=run_id,decision=jsonable(decision),created_at=now))
-            row.state = 'queued' if decision.action=='approve' else 'cancelled'
+            if decision.action=='approve':
+                row.state = 'succeeded' if row.input_manifest['workflow_version']=='fixed-v1' else 'queued'
+            else:
+                row.state = 'cancelled'
             row.cancel_requested = decision.action=='reject'
             row.updated_at = now
             self.event(session,row,'reviewed',now,{'action':decision.action,'actor_id':decision.actor_id})

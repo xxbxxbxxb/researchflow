@@ -38,3 +38,5 @@ The original 58 tests passed before changes. Real database tests use PostgreSQL 
 Complete all tasks in the approved plan. No merge, paid deployment or live model fallback is authorized.
 Real model quality and live embedding/arXiv smoke are not_run without configured credentials/connectivity.
 CI must later expand to locked dependencies, Python 3.11/3.12 on Ubuntu/Windows, lint/type checks, real database failure/restart scenarios, Web build/Playwright, and Compose.
+
+Task 11 knowledge core GREEN: CI38392021442/job115277872608 passed165 tests. Fixed review RED: CI38392096808 rejected the missing require_review input before implementation. Knowledge API is now connected; full gate pending.

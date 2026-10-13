@@ -67,4 +67,5 @@ class FixedWorkflow:
                 output = StepOutput(result=result)
             outputs[phase] = (await self.runs.commit_step(handle,phase,output)).output
         assert outputs['report'].result is not None
-        return RunOutcome('succeeded',outputs['report'].result.report.report_id)
+        state = 'awaiting_review' if record.input_manifest.get('require_review',False) else 'succeeded'
+        return RunOutcome(state,outputs['report'].result.report.report_id)

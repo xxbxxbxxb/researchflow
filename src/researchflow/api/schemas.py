@@ -26,6 +26,7 @@ class RunStart(StrictInput):
     project_id: str = Field(min_length=1,max_length=200)
     mode: Literal['demo','live'] | None = None
     driver: Literal['fixed'] = 'fixed'
+    require_review: bool = False
     demo_case: Literal['supported','contradicted','insufficient','invalid-citation'] = 'supported'
 
 
