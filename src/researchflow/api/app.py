@@ -77,7 +77,7 @@ def create_app(settings: Settings,database: Database | None = None) -> FastAPI:
             async with request.app.state.resources.database.session() as session:
                 await session.execute(text('SELECT 1'))
                 version = await session.scalar(text('SELECT version_num FROM alembic_version'))
-            if version != '0005':
+            if version != '0006':
                 return JSONResponse({'status':'not_ready','schema':'migration_required'},status_code=503)
             return {'status':'ready','schema_version':version}
         except Exception:

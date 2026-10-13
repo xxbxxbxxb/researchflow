@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Any
 from typing import get_args, get_origin, get_type_hints, Literal, Union
 import types
+import math
 
 
 def jsonable(value: Any) -> Any:
@@ -53,7 +54,11 @@ def decode_dataclass(cls: Any, data: Any) -> Any:
             raise ValueError('stored record invalid')
         hints = get_type_hints(cls)
         return cls(**{f.name:decode_dataclass(hints[f.name],data[f.name]) for f in fields(cls) if f.name in data})
-    if cls in (str,int,float,bool):
+    if cls is float:
+        if type(data) not in (int,float) or not math.isfinite(data):
+            raise ValueError('stored floating scalar invalid')
+        return float(data)
+    if cls in (str,int,bool):
         if not isinstance(data,cls) or cls is int and isinstance(data,bool):
             raise ValueError('stored scalar invalid')
         return data
