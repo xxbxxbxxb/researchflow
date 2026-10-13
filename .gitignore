@@ -29,3 +29,4 @@ graphflow-out
 !.env.example
 .researchflow-data/
 artifacts/
+.superpowers/
