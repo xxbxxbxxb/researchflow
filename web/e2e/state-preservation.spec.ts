@@ -13,7 +13,12 @@ test('progress refresh preserves scrolling, the evidence drawer and unsaved text
   await page.getByLabel('后续研究问题').fill(unsaved);
   await page.evaluate(() => window.scrollTo(0, 250));
   const original = await page.evaluate(() => window.scrollY);
-  await page.waitForTimeout(2200); // two actual polling/SSE refresh intervals
+  const reportId = new URL(page.url()).pathname.split('/').pop()!;
+  const report = await (await page.request.get(`/api/reports/${reportId}?project_id=${pid}`)).json();
+  const session = await (await page.request.get('/api/auth/session')).json();
+  const started = await page.request.post(`/api/tasks/${report.task_id}/runs`, { data: { project_id: pid, mode: 'demo' }, headers: { 'origin': 'http://localhost:5173', 'x-csrf-token': session.csrf_token, 'idempotency-key': `background-${reportId}` } });
+  expect(started.status()).toBe(201);
+  await expect(page.getByRole('link', { name: '有更新的报告' })).toBeVisible(); // actual new Worker/SSE activity
   expect(Math.abs((await page.evaluate(() => window.scrollY)) - original)).toBeLessThan(2);
   await expect(page.getByTestId('evidence-drawer')).toBeVisible();
   await expect(page.getByLabel('后续研究问题')).toHaveValue(unsaved);

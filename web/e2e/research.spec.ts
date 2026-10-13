@@ -22,6 +22,10 @@ test('PDF evidence closes the project, research, knowledge and follow-up path', 
   await page.goto(`/projects/${project}?tab=knowledge`);
   await expect(page.getByText('What experimental condition limits this conclusion?')).toBeVisible();
   await expect(page.getByRole('button', { name: '启动后续研究' })).toBeVisible();
+  await page.getByRole('button', { name: '启动后续研究' }).click();
+  await expect(page.getByText('研究已完成', { exact: true })).toBeVisible();
+  const drafts = await (await page.request.get(`/api/projects/${project}/follow-ups`)).json();
+  expect(drafts[0].started_run_id).toBeTruthy();
 });
 
 test('invalid citations fail visibly and never acquire a verified conclusion', async ({ page }) => {
