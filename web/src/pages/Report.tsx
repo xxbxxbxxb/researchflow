@@ -5,7 +5,7 @@ import { Download,ArrowRight,FileCheck } from 'lucide-react';
 import { api,ResearchResult,ReportVersion,Schema,scope,link,errorText,dateText } from '../lib/api';
 import { keys } from '../lib/queryKeys';
 import { useProjectLive } from '../lib/events';
-import { useStickyState } from '../lib/state';
+import { useStickyState,usePageScroll } from '../lib/state';
 import { useWorkspace } from '../context';
 import ClaimCard from '../components/ClaimCard';
 
@@ -18,6 +18,7 @@ function ReportContent({reportId,projectId}:{reportId:string;projectId:string}) 
   useProjectLive(projectId);
   const detail=useQuery({queryKey:keys.report(reportId),queryFn:()=>api.get<ResearchResult>(scope('/api/reports/'+reportId,projectId)),staleTime:Infinity});
   const versions=useQuery({queryKey:keys.reports(projectId),queryFn:()=>api.get<ReportVersion[]>('/api/projects/'+projectId+'/reports'),refetchInterval:1000});
+  usePageScroll(!!detail.data);
   const result=detail.data,newer=versions.data?.find(version=>version.task_id===result?.task_id&&version.version>(result?.report.version??0));
   const [question,setQuestion]=useStickyState('rf:followup:'+reportId,'');
   const draft=useMutation({mutationFn:()=>api.post<Schema['FollowUpDraft']>('/api/projects/'+projectId+'/follow-ups',{parent_task_id:result!.task_id,question,claim_ids:result!.claims.map(claim=>claim.claim_id)}),onSuccess:()=>{setQuestion('');void client.invalidateQueries({queryKey:keys.drafts(projectId)});}});
