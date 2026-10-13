@@ -12,3 +12,25 @@ class EvidenceRepository(Protocol):
 
 class ResearchReadRepository(SnapshotRepository, Protocol):
     async def get_task(self, project_id: str, task_id: str) -> TaskRecord | None: ...
+
+from dataclasses import dataclass
+from researchflow.domain.claims import Claim,Verification
+from researchflow.domain.reports import ResearchResult
+from researchflow.domain.knowledge import KnowledgeEntry,FollowUpDraft
+
+
+@dataclass(frozen=True)
+class VerificationContext:
+    verification: Verification
+    claim: Claim
+    result: ResearchResult
+    is_current: bool
+
+
+class KnowledgePort(Protocol):
+    async def verification_context(self, project_id: str, verification_id: str) -> VerificationContext: ...
+    async def get_entry(self, project_id: str, knowledge_id: str) -> KnowledgeEntry | None: ...
+    async def accept_entry(self, entry: KnowledgeEntry) -> KnowledgeEntry: ...
+    async def replace_entry(self, old_id: str, entry: KnowledgeEntry) -> KnowledgeEntry: ...
+    async def save_override(self, project_id: str, old_id: str, verification: Verification, result: ResearchResult) -> Verification: ...
+    async def save_draft(self, draft: FollowUpDraft) -> FollowUpDraft: ...

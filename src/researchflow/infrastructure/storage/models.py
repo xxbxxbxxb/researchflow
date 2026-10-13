@@ -191,3 +191,25 @@ class ReviewRow(Base):
     decision: Mapped[dict[str,Any]] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     __table_args__ = (ForeignKeyConstraint(['project_id','run_id'],['workflow_runs.project_id','workflow_runs.run_id']),)
+
+
+class KnowledgeRow(Base):
+    __tablename__ = 'knowledge_entries'
+    project_id: Mapped[str] = mapped_column(String(200),primary_key=True)
+    knowledge_id: Mapped[str] = mapped_column(String(200),primary_key=True)
+    verification_id: Mapped[str] = mapped_column(String(200))
+    report_id: Mapped[str] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(String(30))
+    supersedes_id: Mapped[str | None] = mapped_column(String(200),nullable=True)
+    data: Mapped[dict[str,Any]] = mapped_column(JSON)
+    __table_args__ = (ForeignKeyConstraint(['project_id','verification_id'],['verifications.project_id','verifications.verification_id']),ForeignKeyConstraint(['project_id','report_id'],['report_versions.project_id','report_versions.report_id']),ForeignKeyConstraint(['project_id','supersedes_id'],['knowledge_entries.project_id','knowledge_entries.knowledge_id']))
+
+
+class FollowUpRow(Base):
+    __tablename__ = 'follow_up_drafts'
+    project_id: Mapped[str] = mapped_column(String(200),primary_key=True)
+    draft_id: Mapped[str] = mapped_column(String(200),primary_key=True)
+    parent_task_id: Mapped[str] = mapped_column(String(200))
+    started_run_id: Mapped[str | None] = mapped_column(String(200),nullable=True)
+    data: Mapped[dict[str,Any]] = mapped_column(JSON)
+    __table_args__ = (ForeignKeyConstraint(['project_id','parent_task_id'],['research_tasks.project_id','research_tasks.task_id']),ForeignKeyConstraint(['project_id','started_run_id'],['workflow_runs.project_id','workflow_runs.run_id']))
