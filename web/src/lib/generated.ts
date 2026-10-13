@@ -262,6 +262,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/runs/{run_id}/budget": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Budget Snapshot */
+        get: operations["budget_snapshot_api_runs__run_id__budget_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/runs/{run_id}/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Usage Summary */
+        get: operations["usage_summary_api_runs__run_id__usage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/reports": {
         parameters: {
             query?: never;
@@ -732,6 +766,30 @@ export interface components {
              */
             comment: string;
         };
+        /** RunBudget */
+        RunBudget: {
+            /**
+             * Model Calls Used
+             * @default 0
+             */
+            model_calls_used: number;
+            /**
+             * Tool Calls Used
+             * @default 0
+             */
+            tool_calls_used: number;
+            /**
+             * Steps Used
+             * @default 0
+             */
+            steps_used: number;
+            /**
+             * Active Elapsed Seconds
+             * @default 0
+             */
+            active_elapsed_seconds: number;
+            limits?: components["schemas"]["RunLimits"];
+        };
         /** RunEventResponse */
         RunEventResponse: {
             /** Event Id */
@@ -749,6 +807,39 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** RunLimits */
+        RunLimits: {
+            /**
+             * Max Steps
+             * @default 12
+             */
+            max_steps: number;
+            /**
+             * Max Tool Calls
+             * @default 20
+             */
+            max_tool_calls: number;
+            /**
+             * Max Model Calls
+             * @default 16
+             */
+            max_model_calls: number;
+            /**
+             * Max Concurrency
+             * @default 4
+             */
+            max_concurrency: number;
+            /**
+             * Active Timeout Seconds
+             * @default 300
+             */
+            active_timeout_seconds: number;
+            /**
+             * Operation Timeout Seconds
+             * @default 60
+             */
+            operation_timeout_seconds: number;
         };
         /** RunRecord */
         RunRecord: {
@@ -1462,6 +1553,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RunRecord"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    budget_snapshot_api_runs__run_id__budget_get: {
+        parameters: {
+            query: {
+                project_id: string;
+            };
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunBudget"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    usage_summary_api_runs__run_id__usage_get: {
+        parameters: {
+            query: {
+                project_id: string;
+            };
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
