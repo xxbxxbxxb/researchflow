@@ -26,3 +26,6 @@ dist/
 
 .graphflow-cache
 graphflow-out
+!.env.example
+.researchflow-data/
+artifacts/

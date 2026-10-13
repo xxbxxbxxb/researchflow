@@ -12,8 +12,13 @@ async def database(tmp_path):
     if importlib.util.find_spec('researchflow.infrastructure.storage.database') is None:
         pytest.fail('PostgreSQL repository is not implemented')
     from researchflow.infrastructure.storage.database import Database
+    from researchflow.infrastructure.storage.models import Base
+    from sqlalchemy import text
     db = Database(url)
-    await db.reset_for_test()
+    async with db.engine.begin() as conn:
+        await conn.execute(text('CREATE EXTENSION IF NOT EXISTS vector'))
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
     yield db
     await db.close()
 
