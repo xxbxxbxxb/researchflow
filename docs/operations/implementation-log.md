@@ -9,7 +9,7 @@ The user approved Native: main agent implements all tasks continuously; one fres
 
 ## Verified tasks
 
-Tasks 1–10 implemented and verified. Task 11 is in progress; Tasks 12–20 remain.
+Tasks 1–11 implemented and verified. Tasks 12–20 remain.
 The original 58 tests passed before changes. Real database tests use PostgreSQL 16.15 and pgvector in GitHub Actions; local skips are never counted as database verification.
 
 | Task | Verification evidence |
@@ -40,3 +40,5 @@ Real model quality and live embedding/arXiv smoke are not_run without configured
 CI must later expand to locked dependencies, Python 3.11/3.12 on Ubuntu/Windows, lint/type checks, real database failure/restart scenarios, Web build/Playwright, and Compose.
 
 Task 11 knowledge core GREEN: CI38392021442/job115277872608 passed165 tests. Fixed review RED: CI38392096808 rejected the missing require_review input before implementation. Knowledge API is now connected; full gate pending.
+
+Executor restored after Task 11. Pending local authored changes were backed up, the remote tree was restored into the isolated worktree, and native verification resumed. CI38392396244: 166 passed, including fixed review wait/resolution.

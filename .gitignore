@@ -30,3 +30,6 @@ graphflow-out
 .researchflow-data/
 artifacts/
 .superpowers/
+node_modules/
+web/test-results/
+web/playwright-report/

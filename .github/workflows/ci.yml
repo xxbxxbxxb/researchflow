@@ -30,3 +30,9 @@ jobs:
           python-version: '3.11'
       - run: python -m pip install -e '.[dev]'
       - run: python -m pytest -q
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - run: npm --prefix web ci
+      - run: npx --prefix web playwright install --with-deps chromium
+      - run: npm --prefix web run test:e2e
