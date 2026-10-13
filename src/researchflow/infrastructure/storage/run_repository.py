@@ -12,7 +12,7 @@ from researchflow.domain.runs import RunHandle, RunRecord, RunState, StepOutput,
 from researchflow.domain.errors import ProjectBoundaryError
 from researchflow.infrastructure.storage.codec import decode_dataclass, jsonable
 from researchflow.infrastructure.storage.database import Database
-from researchflow.infrastructure.storage.models import RunRow, StepRow, EventRow, TaskRow, ClaimRow, SnapshotRow, ProjectRow, IdempotencyRow, ReviewRow
+from researchflow.infrastructure.storage.models import RunRow, StepRow, EventRow, TaskRow, ClaimRow, SnapshotRow, ProjectRow, IdempotencyRow, ReviewRow, BudgetRow
 from researchflow.infrastructure.storage.repositories import ResearchRepository
 from researchflow.ports.runtime import RunOwnershipLostError, RunCancelledError, InputVersionMismatchError
 from researchflow.domain.runs import ReviewDecision
@@ -178,6 +178,10 @@ class RunRepository:
         async with self.database.session.begin() as session:
             row = await self.fence(session,handle,allow_cancel=(state=='cancelled'))
             now = await self.now(session)
+            budget=await session.get(BudgetRow,(handle.project_id,handle.run_id))
+            if budget is not None:
+                budget.active=False
+                budget.active_updated_at=now
             row.state,row.error_code,row.updated_at,row.owner_id,row.lease_until = state,error_code,now,None,None
             self.event(session,row,state,now,{'error_code':error_code})
             return self.record(row)

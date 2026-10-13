@@ -1,17 +1,23 @@
 import asyncio
+from collections.abc import Awaitable,Callable
+from researchflow.domain.runs import RunHandle
+from researchflow.domain.usage import BudgetExceededError
 from contextlib import suppress
 
 from researchflow.ports.runtime import RunRepositoryPort, WorkflowPort, RunCancelledError, RunOwnershipLostError, InputVersionMismatchError
 
 
 class Worker:
-    def __init__(self, runs: RunRepositoryPort, workflow: WorkflowPort, owner_id: str, heartbeat_seconds: float = 1.0) -> None:
+    def __init__(self, runs: RunRepositoryPort, workflow: WorkflowPort, owner_id: str, heartbeat_seconds: float = 1.0, on_heartbeat: Callable[[RunHandle],Awaitable[None]] | None = None) -> None:
         self.runs,self.workflow,self.owner_id,self.heartbeat_seconds = runs,workflow,owner_id,heartbeat_seconds
+        self.on_heartbeat=on_heartbeat
 
     async def pulse(self, handle) -> None:
         while True:
             await asyncio.sleep(self.heartbeat_seconds)
             await self.runs.heartbeat(handle)
+            if self.on_heartbeat is not None:
+                await self.on_heartbeat(handle)
 
     async def run_once(self) -> bool:
         handle = await self.runs.claim_next(self.owner_id)
@@ -36,7 +42,7 @@ class Worker:
             raise
         except Exception as exc:
             with suppress(RunOwnershipLostError,RunCancelledError):
-                code = 'input_version_mismatch' if isinstance(exc,InputVersionMismatchError) else 'execution_failed'
+                code = 'input_version_mismatch' if isinstance(exc,InputVersionMismatchError) else 'budget_exceeded' if isinstance(exc,BudgetExceededError) else 'execution_failed'
                 await self.runs.finish(handle,'failed',code)
         finally:
             for task in (execution,heartbeat):

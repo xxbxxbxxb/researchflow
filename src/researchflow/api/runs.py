@@ -11,6 +11,7 @@ from researchflow.application.retrieval import INDEX_VERSION
 from researchflow.domain.access import Principal
 from researchflow.domain.runs import ReviewDecision
 from researchflow.domain.runs import RunRecord
+from researchflow.domain.usage import RunBudget
 from researchflow.infrastructure.storage.codec import jsonable
 
 router = APIRouter(tags=['runs'])
@@ -77,3 +78,22 @@ async def resume(run_id: str,project_id: str,data: ResumeInput,request: Request)
 @router.post('/api/runs/{run_id}/review',dependencies=[Depends(require_project)],response_model=RunRecord)
 async def review(run_id: str,project_id: str,data: ReviewInput,request: Request,principal: Principal = Depends(require_principal)):
     return jsonable(await request.app.state.resources.runs.review(project_id,run_id,ReviewDecision(data.action,principal.actor_id,data.comment)))
+
+
+@router.get('/api/runs/{run_id}/budget',dependencies=[Depends(require_project)],response_model=RunBudget | None)
+async def budget_snapshot(run_id: str, project_id: str, request: Request):
+    resources=request.app.state.resources
+    if await resources.runs.get_run(project_id,run_id) is None:
+        raise APIError(404,'not_found','Run was not found.')
+    return await resources.budgets.read_snapshot(project_id,run_id)
+
+
+@router.get('/api/runs/{run_id}/usage',dependencies=[Depends(require_project)])
+async def usage_summary(run_id: str, project_id: str, request: Request):
+    resources=request.app.state.resources
+    if await resources.runs.get_run(project_id,run_id) is None:
+        raise APIError(404,'not_found','Run was not found.')
+    records=await resources.budgets.list_usage(project_id,run_id)
+    costs=[record['estimated_cost'] for record in records]
+    total=sum(costs) if costs and all(cost is not None for cost in costs) else None
+    return {'attempts':records,'estimated_cost':total,'currency':'USD','usage_known':bool(records) and all(record['input_tokens'] is not None and record['output_tokens'] is not None for record in records)}

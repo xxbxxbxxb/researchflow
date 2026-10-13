@@ -46,8 +46,8 @@ async def run(args):
         mode = 'demo'
     else:
         mode = args.mode
-        if mode == 'live' and not all(os.getenv(k) for k in ('RF_LLM_BASE_URL','RF_LLM_API_KEY','RF_LLM_MODEL')):
-            return {'error':{'code':'configuration_missing','message':'Live mode requires RF_LLM_BASE_URL, RF_LLM_API_KEY and RF_LLM_MODEL.'}},1
+        if mode == 'live' and not all(os.getenv(k) for k in ('RF_LLM_BASE_URL','RF_LLM_API_KEY','RF_LLM_MODEL','RF_CONTEXT_WINDOW')):
+            return {'error':{'code':'configuration_missing','message':'Live mode requires provider credentials and RF_CONTEXT_WINDOW.'}},1
         payload = json.loads(Path(args.input).read_text(encoding='utf-8'))
         case = payload.get('demo_case','supported')
         if mode == 'demo' and 'demo_case' not in payload:
@@ -61,8 +61,15 @@ async def run(args):
             model = DemoCaseModel(case)
         else:
             model = OpenAIChatModel(client,OpenAICompatibleConfig(os.environ['RF_LLM_BASE_URL'],os.environ['RF_LLM_API_KEY'],os.environ['RF_LLM_MODEL']))
+        from researchflow.runtime.budget import MemoryBudgetRepository
+        from researchflow.runtime.model_runtime import ModelRuntime,BoundChatModel
+        from researchflow.domain.runs import RunHandle
+        handle=RunHandle(uuid4().hex,task.project_id,task.task_id,1,'cli')
+        runtime=ModelRuntime(model,MemoryBudgetRepository(handle),context_window=int(os.environ['RF_CONTEXT_WINDOW']) if mode=='live' else 65536)
         async with asyncio.timeout(300):
-            result = await ResearchService(model,mode).run_manual(task,snapshots,evidences,uuid4().hex)
+            await runtime.tick(handle)
+            result = await ResearchService(BoundChatModel(runtime,handle),mode).run_manual(task,snapshots,evidences,handle.run_id)
+            await runtime.tick(handle)
     return result,0
 
 
@@ -78,7 +85,7 @@ def main() -> int:
     research.add_argument('--format',choices=['json','markdown'],default='markdown')
     worker = commands.add_parser('worker',help='Execute durable database runs')
     worker.add_argument('--once',action='store_true')
-    worker.add_argument('--mode',choices=['live','demo'],default='live')
+    worker.add_argument('--mode',choices=['live','demo'],default=os.getenv('RF_MODE','live'))
     worker.set_defaults(format='json')
     server = commands.add_parser('serve',help='Start the authenticated ResearchFlow API')
     server.add_argument('--host',default='127.0.0.1')

@@ -35,7 +35,7 @@ class Settings:
 
     @property
     def live_configured(self) -> bool:
-        return bool(self.llm_base_url and self.llm_api_key and self.llm_model)
+        return bool(self.llm_base_url and self.llm_api_key and self.llm_model and self.context_window is not None and self.context_window>4096)
 
     @classmethod
     def from_env(cls) -> 'Settings':
