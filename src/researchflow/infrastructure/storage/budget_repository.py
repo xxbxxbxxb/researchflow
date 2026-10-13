@@ -59,13 +59,16 @@ class BudgetRepository:
         async with self.database.session.begin() as session:
             row=await self.row_in(session,handle)
             current=self.value(row)
+            now=await self.runs.now(session)
+            # Worker and preview processes share one active clock.
+            seconds=max(0.0,(now-row.active_updated_at).total_seconds()) if row.active else 0.0
             try:
                 budget=current.charge(seconds)
             except BudgetExceededError:
                 exhausted=True
                 budget=replace(current,active_elapsed_seconds=current.limits.active_timeout_seconds)
             self.apply(row,budget)
-            row.active_updated_at=await self.runs.now(session)
+            row.active_updated_at=now
         if exhausted:
             raise BudgetExceededError('active run deadline exhausted','active')
         return budget

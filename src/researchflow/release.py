@@ -93,5 +93,5 @@ def validate(output: Path,existing_results=False,root: Path | None=None):
         revision='source-distribution'
     manifest={'status':combine([v['status'] for v in scenarios.values()]+[c['status'] for c in checks.values()]),'revision':revision,'created_at':datetime.now(UTC).isoformat(),'python':sys.version.split()[0],'checks':checks,'scenarios':scenarios,'live_quality':{'status':'not_run','reason':'separate_live_evaluation_required'}}
     output.mkdir(parents=True,exist_ok=True)
-    (output/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+    (output/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
     return manifest

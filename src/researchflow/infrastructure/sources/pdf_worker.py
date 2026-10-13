@@ -13,7 +13,7 @@ def main() -> None:
         result = asdict(DocumentParser().parse(sys.stdin.buffer.read(MAX_BYTES + 1), 'application/pdf'))
     except ValueError as exc:
         result = {'error': str(exc)}
-    print(json.dumps(result, ensure_ascii=False))
+    print(json.dumps(result, ensure_ascii=True))
 
 
 if __name__ == '__main__':

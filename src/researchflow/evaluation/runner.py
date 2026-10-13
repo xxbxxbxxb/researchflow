@@ -56,7 +56,7 @@ class EvaluationRunner:
                         predictions.append(Prediction(case.case_id,case.gold,'failed',(),(eid,),type(exc).__name__))
             report=EvaluationReport('completed',mode,mode=='live',len(dataset),tuple(predictions),compute_metrics(tuple(predictions)),{**metadata,'model':os.getenv('RF_LLM_MODEL') if mode=='live' else 'contract:seeded-gold'})
         output_dir.mkdir(parents=True,exist_ok=True)
-        (output_dir/'report.json').write_text(json.dumps(asdict(report),ensure_ascii=False,indent=2)+'\n')
+        (output_dir/'report.json').write_text(json.dumps(asdict(report),ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
         errors=[asdict(p) for p in report.predictions if p.predicted!=p.gold]
-        (output_dir/'errors.json').write_text(json.dumps(errors,ensure_ascii=False,indent=2)+'\n')
+        (output_dir/'errors.json').write_text(json.dumps(errors,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
         return report

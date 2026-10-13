@@ -68,12 +68,12 @@ async def login(data: LoginInput, request: Request, response: Response):
         token,csrf = await resources.sessions.create()
     response.set_cookie('rf_session',token,max_age=8*3600,httponly=True,secure=settings.secure_cookies,samesite='lax',path='/')
     response.set_cookie('rf_csrf',csrf,max_age=8*3600,secure=settings.secure_cookies,samesite='strict',path='/')
-    return {'actor_id':'local-user','csrf_token':csrf,'execution_mode':settings.execution_mode}
+    return {'actor_id':'local-user','csrf_token':csrf,'execution_mode':settings.execution_mode,'preview_enabled':settings.preview_enabled}
 
 
 @router.get('/session',response_model=AuthSessionResponse)
 async def session_info(request: Request, principal: Principal = Depends(require_principal)):
-    return {'actor_id':principal.actor_id,'csrf_token':request.cookies.get('rf_csrf',''),'execution_mode':request.app.state.settings.execution_mode}
+    return {'actor_id':principal.actor_id,'csrf_token':request.cookies.get('rf_csrf',''),'execution_mode':request.app.state.settings.execution_mode,'preview_enabled':request.app.state.settings.preview_enabled}
 
 
 @router.post('/logout',dependencies=[Depends(require_principal)])

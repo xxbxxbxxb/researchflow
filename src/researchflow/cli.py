@@ -127,9 +127,12 @@ def main() -> int:
     except (OSError,RuntimeError,TimeoutError):
         result,code = {'error':{'code':'operation_failed','message':'Research operation could not be completed.'}},1
     if args.format == 'markdown' and code == 0:
+        import sys
+        if hasattr(sys.stdout,'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8')
         print(result.report.markdown)
     else:
-        print(json.dumps(jsonable(result),ensure_ascii=False))
+        print(json.dumps(jsonable(result),ensure_ascii=True))
     return code
 
 

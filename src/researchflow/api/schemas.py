@@ -67,6 +67,7 @@ class AuthSessionResponse(BaseModel):
     actor_id: str
     csrf_token: str
     execution_mode: Literal['demo','live']
+    preview_enabled: bool = False
 
 
 class RunEventResponse(BaseModel):

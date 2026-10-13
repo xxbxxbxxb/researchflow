@@ -16,7 +16,7 @@ export type RunEvent = Schema['RunEventResponse'];
 export class APIError extends Error {
   constructor(public status: number, public code: string, message: string) { super(message); }
 }
-function csrfToken() {
+export function csrfToken() {
   return document.cookie.split('; ').find(row => row.startsWith('rf_csrf='))?.slice(8) ?? '';
 }
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {

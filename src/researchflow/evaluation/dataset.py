@@ -67,7 +67,7 @@ def load_split(split):
         raise ValueError('unknown evaluation split')
     root=files('researchflow.evaluation').joinpath('data')
     data=root.joinpath(split+'.jsonl').read_bytes()
-    manifest=json.loads(root.joinpath('manifest.json').read_text())
+    manifest=json.loads(root.joinpath('manifest.json').read_text(encoding='utf-8'))
     if sha256(data).hexdigest()!=manifest['splits'][split]['sha256']:
         raise ValueError('evaluation dataset hash mismatch')
     cases=[]

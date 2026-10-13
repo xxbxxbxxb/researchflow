@@ -89,7 +89,7 @@ def main():
         subprocess.run([*compose,'up','--build','-d'],cwd=ROOT,env=env,check=True)
         result=asyncio.run(smoke(env,compose))
     finally:
-        (artifacts/'compose-smoke.json').write_text(json.dumps(result,indent=2)+'\n')
+        (artifacts/'compose-smoke.json').write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8')
         subprocess.run([*compose,'down','--volumes'],cwd=ROOT,env=env,check=False,capture_output=True)
     print(json.dumps(result,indent=2))
 

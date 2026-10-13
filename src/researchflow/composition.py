@@ -21,6 +21,13 @@ from researchflow.runtime.model_runtime import BoundChatModel, ModelRuntime
 from researchflow.runtime.worker import Worker
 
 
+def configured_embeddings(settings,client):
+    if not settings.embedding_configured:
+        return None
+    from researchflow.infrastructure.llm.embeddings import OpenAIEmbeddings
+    return OpenAIEmbeddings(client,settings.embedding_base_url,settings.embedding_api_key,settings.embedding_model,settings.embedding_dimensions)
+
+
 class ConfiguredWorkflow:
     def __init__(self, runs, research, retriever, model, mode, context_window: int | None = None, price=None,trace=None):
         self.runs,self.research,self.retriever,self.model,self.mode=runs,research,retriever,model,mode
@@ -46,6 +53,10 @@ class ConfiguredWorkflow:
         self.runtimes[key]=runtime
         try:
             await runtime.tick(handle)
+            retriever=self.retriever
+            if self.mode=='live' and self.retriever.embeddings:
+                from researchflow.runtime.embedding_runtime import BudgetedEmbeddings
+                retriever=PostgresRetriever(self.runs.database,BudgetedEmbeddings(self.retriever.embeddings,store,handle,context,self.trace))
             from researchflow.runtime.graph_workflow import GraphWorkflow
             driver=GraphWorkflow if record.input_manifest['workflow_version']=='graph-v1' else FixedWorkflow
             collector=None
@@ -62,9 +73,9 @@ class ConfiguredWorkflow:
                 from researchflow.runtime.tools import ToolRegistry
                 fetcher=SourceFetcher()
                 ingestion=IngestSource(self.research,BlobStore(Path(os.getenv('RF_BLOB_ROOT','.researchflow-data/blobs'))),DocumentParser(),fetcher)
-                registry=ToolRegistry(self.runs,store,ArxivSearch(fetcher),ingestion,self.research,self.retriever)
+                registry=ToolRegistry(self.runs,store,ArxivSearch(fetcher),ingestion,self.research,retriever)
                 collector=MinimalReAct(BoundChatModel(runtime,handle),registry,store,Principal('owner',(handle.project_id,)))
-            return await driver(BudgetedRuns(self.runs,runtime),self.research,self.retriever,BoundChatModel(runtime,handle),self.mode,collector,trace=self.trace).execute(handle)
+            return await driver(BudgetedRuns(self.runs,runtime),self.research,retriever,BoundChatModel(runtime,handle),self.mode,collector,trace=self.trace).execute(handle)
         finally:
             self.runtimes.pop(key,None)
 
@@ -83,10 +94,12 @@ async def worker_resources(mode: Literal['demo','live'], owner_id: str | None = 
         model = OpenAIChatModel(client,OpenAICompatibleConfig(os.environ['RF_LLM_BASE_URL'],os.environ['RF_LLM_API_KEY'],os.environ['RF_LLM_MODEL'])) if mode == 'live' else DemoCaseModel()
         research = ResearchRepository(database)
         runs = RunRepository(database,research)
+        from researchflow.settings import Settings
+        retriever=PostgresRetriever(database,configured_embeddings(Settings.from_env(),client) if mode=='live' else None)
         from researchflow.infrastructure.telemetry.otel import OpenTelemetryTrace
         trace=OpenTelemetryTrace(endpoint=os.getenv('RF_OTLP_TRACES_ENDPOINT'))
         stack.callback(trace.close)
-        workflow = ConfiguredWorkflow(runs,research,PostgresRetriever(database),model,mode,context_window=int(os.environ['RF_CONTEXT_WINDOW']) if mode=='live' else None,trace=trace)
+        workflow = ConfiguredWorkflow(runs,research,retriever,model,mode,context_window=int(os.environ['RF_CONTEXT_WINDOW']) if mode=='live' else None,trace=trace)
         yield Worker(runs,workflow,owner_id or 'worker-' + uuid4().hex,on_heartbeat=workflow.tick,trace=trace)
 
 
@@ -121,6 +134,6 @@ async def api_resources(settings, database: Database | None = None):
         client = await stack.enter_async_context(httpx.AsyncClient(timeout=60,trust_env=False))
         research = ResearchRepository(db)
         blobs = BlobStore(settings.blob_root)
-        retriever = PostgresRetriever(db)
+        retriever = PostgresRetriever(db,configured_embeddings(settings,client) if settings.execution_mode=='live' else None)
         knowledge_repository = KnowledgeRepository(db,research)
         yield APIResources(db,research,RunRepository(db,research),retriever,SessionRepository(db),blobs,IngestSource(research,blobs,DocumentParser(),SourceFetcher()),client,KnowledgeService(knowledge_repository),knowledge_repository,BudgetRepository(db))

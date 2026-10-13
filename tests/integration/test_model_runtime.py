@@ -194,3 +194,20 @@ async def test_independent_preview_and_worker_runtimes_do_not_double_charge_the_
     await preview.tick(handle)
     elapsed=(await store.snapshot(handle)).active_elapsed_seconds
     assert elapsed<=time.monotonic()-start+0.05,'overlapping runtimes must share one active wall clock'
+
+
+@pytest.mark.asyncio
+async def test_live_capable_worker_runs_explicit_demo_without_calling_live_provider(database,repository):
+    from researchflow.composition import ConfiguredWorkflow
+    from researchflow.infrastructure.storage.retrieval import PostgresRetriever
+    from researchflow.infrastructure.storage.run_repository import RunRepository
+    await repository.create_project(Project('p','Explicit mode'))
+    await repository.save_task(TaskRecord('t','p','no material'))
+    runs=RunRepository(database,repository)
+    await runs.enqueue('t','p','fixed-v1',input_manifest={'execution_mode':'demo','demo_case':'insufficient'})
+    handle=await runs.claim_next('live-worker')
+    class ForbiddenLiveProvider:
+        async def complete(self,request):
+            pytest.fail('explicit demo must never send a real model request')
+    workflow=ConfiguredWorkflow(runs,repository,PostgresRetriever(database),ForbiddenLiveProvider(),'live',context_window=65536)
+    assert (await workflow.execute(handle)).state=='succeeded'

@@ -535,6 +535,11 @@ export interface components {
              * @enum {string}
              */
             execution_mode: "demo" | "live";
+            /**
+             * Preview Enabled
+             * @default false
+             */
+            preview_enabled: boolean;
         };
         /** Claim */
         Claim: {

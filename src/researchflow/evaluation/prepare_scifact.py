@@ -76,10 +76,10 @@ def prepare(archive: Path,output: Path):
     output.mkdir(parents=True,exist_ok=True)
     manifest: dict[str,Any]={'source_url':URL,'archive_sha256':EXPECTED_HASH,'claim_license':'CC BY 4.0','abstract_license':'ODC-By 1.0','citation':'Wadden et al. (2020), Fact or Fiction: Verifying Scientific Claims, EMNLP 2020. https://aclanthology.org/2020.emnlp-main.609/','selection':'original train/dev labels; grouped by claim and document; full abstract given to verifier, gold rationale kept only for auditing','splits':{}}
     for split,rows in groups.items():
-        data=('\n'.join(json.dumps(row,ensure_ascii=False,sort_keys=True) for row in rows)+'\n').encode()
+        data=('\n'.join(json.dumps(row,ensure_ascii=False,sort_keys=True) for row in rows)+'\n').encode('utf-8')
         (output/(split+'.jsonl')).write_bytes(data)
         manifest['splits'][split]={'size':len(rows),'sha256':hashlib.sha256(data).hexdigest(),'claim_ids':[r['claim_id'] for r in rows],'doc_ids':[r['doc_id'] for r in rows]}
-    (output/'manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n')
+    (output/'manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
 
 
 if __name__=='__main__':
