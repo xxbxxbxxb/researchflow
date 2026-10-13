@@ -58,11 +58,15 @@ class APIResources:
     blobs: object
     ingestion: object
     client: httpx.AsyncClient
+    knowledge: object
+    knowledge_repository: object
 
 
 @asynccontextmanager
 async def api_resources(settings, database: Database | None = None):
     from researchflow.application.ingestion import IngestSource
+    from researchflow.application.knowledge import KnowledgeService
+    from researchflow.infrastructure.storage.knowledge_repository import KnowledgeRepository
     from researchflow.infrastructure.sources.parsers import DocumentParser
     from researchflow.infrastructure.sources.safe_http import SourceFetcher
     from researchflow.infrastructure.storage.blob_store import BlobStore
@@ -75,4 +79,5 @@ async def api_resources(settings, database: Database | None = None):
         research = ResearchRepository(db)
         blobs = BlobStore(settings.blob_root)
         retriever = PostgresRetriever(db)
-        yield APIResources(db,research,RunRepository(db,research),retriever,SessionRepository(db),blobs,IngestSource(research,blobs,DocumentParser(),SourceFetcher()),client)
+        knowledge_repository = KnowledgeRepository(db,research)
+        yield APIResources(db,research,RunRepository(db,research),retriever,SessionRepository(db),blobs,IngestSource(research,blobs,DocumentParser(),SourceFetcher()),client,KnowledgeService(knowledge_repository),knowledge_repository)

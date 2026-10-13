@@ -10,7 +10,7 @@ from pydantic import ValidationError
 from starlette.exceptions import HTTPException
 from sqlalchemy import text
 
-from researchflow.api import auth,projects,sources,tasks,runs,reports,events
+from researchflow.api import auth,projects,sources,tasks,runs,reports,events,knowledge
 from researchflow.api.errors import APIError
 from researchflow.api.limits import BodyLimitMiddleware
 from researchflow.composition import api_resources
@@ -77,13 +77,13 @@ def create_app(settings: Settings,database: Database | None = None) -> FastAPI:
             async with request.app.state.resources.database.session() as session:
                 await session.execute(text('SELECT 1'))
                 version = await session.scalar(text('SELECT version_num FROM alembic_version'))
-            if version != '0004':
+            if version != '0005':
                 return JSONResponse({'status':'not_ready','schema':'migration_required'},status_code=503)
             return {'status':'ready','schema_version':version}
         except Exception:
             return JSONResponse({'status':'not_ready','database':'unavailable'},status_code=503)
 
-    for router in (auth.router,projects.router,sources.router,tasks.router,runs.router,reports.router,events.router):
+    for router in (auth.router,projects.router,sources.router,tasks.router,runs.router,reports.router,events.router,knowledge.router):
         app.include_router(router)
     return app
 
