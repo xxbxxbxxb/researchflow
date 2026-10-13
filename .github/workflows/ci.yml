@@ -3,6 +3,9 @@ on:
   push:
     branches: [reference/mature-v1]
   pull_request:
+concurrency:
+  group: researchflow-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -34,5 +37,10 @@ jobs:
         with:
           node-version: '24'
       - run: npm --prefix web ci
+      - run: python scripts/export_openapi.py
+      - run: npm --prefix web run generate:api
+      - run: git diff --exit-code -- web/src/lib/generated.ts
+      - run: npm --prefix web run typecheck
+      - run: npm --prefix web run build
       - run: npx --prefix web playwright install --with-deps chromium
       - run: npm --prefix web run test:e2e
