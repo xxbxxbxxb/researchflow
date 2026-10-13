@@ -25,6 +25,8 @@ test('progress refresh preserves scrolling, the evidence drawer and unsaved text
   await page.reload();
   await expect(page.getByLabel('后续研究问题')).toHaveValue(unsaved);
   await expect(page.getByTestId('evidence-drawer')).toBeVisible();
+  expect(Math.abs((await page.evaluate(() => window.scrollY)) - original)).toBeLessThan(2);
+  await page.getByRole('button', { name: '关闭原文' }).click();
   await page.goto(`/projects/${pid}?tab=tasks&status=succeeded`);
   await page.getByRole('link', { name: '查看任务' }).first().click();
   await page.goBack();
