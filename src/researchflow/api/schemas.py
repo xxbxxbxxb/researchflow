@@ -76,3 +76,19 @@ class RunEventResponse(BaseModel):
     kind: str
     data: dict[str,Any]
     created_at: datetime
+
+
+class PhaseMetric(BaseModel):
+    step_id: str
+    elapsed_since_previous_seconds: float | None
+
+
+class RunMetricsResponse(BaseModel):
+    phases: list[PhaseMetric]
+    model_attempts: int
+    retries: int
+    recoveries: int
+    usage_known: bool
+    estimated_cost: float | None
+    verification_distribution: dict[str,int]
+    citation_coverage: float | None

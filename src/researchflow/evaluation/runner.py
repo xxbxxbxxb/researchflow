@@ -32,6 +32,7 @@ class EvaluationRunner:
             report=EvaluationReport('not_run',mode,False,len(dataset),(),None,{**metadata,'reason':'configuration_missing'})
         else:
             predictions=[]
+            attempts=[]
             async with httpx.AsyncClient(timeout=60,trust_env=False) as client:
                 for case in dataset:
                     text='\n'.join(case.abstract)
@@ -54,6 +55,10 @@ class EvaluationRunner:
                         predictions.append(Prediction(case.case_id,case.gold,verdict.status,verdict.accepted_evidence_ids,(eid,)))
                     except Exception as exc:
                         predictions.append(Prediction(case.case_id,case.gold,'failed',(),(eid,),type(exc).__name__))
+                    attempts.extend(await runtime.budgets.list_usage(handle.project_id,handle.run_id))
+            def total(key):
+                return sum(a[key] for a in attempts) if attempts and all(a[key] is not None for a in attempts) else None
+            metadata.update(attempts=len(attempts),input_tokens=total('input_tokens'),output_tokens=total('output_tokens'),estimated_cost=total('estimated_cost'))
             report=EvaluationReport('completed',mode,mode=='live',len(dataset),tuple(predictions),compute_metrics(tuple(predictions)),{**metadata,'model':os.getenv('RF_LLM_MODEL') if mode=='live' else 'contract:seeded-gold'})
         output_dir.mkdir(parents=True,exist_ok=True)
         (output_dir/'report.json').write_text(json.dumps(asdict(report),ensure_ascii=False,indent=2)+'\n',encoding='utf-8')

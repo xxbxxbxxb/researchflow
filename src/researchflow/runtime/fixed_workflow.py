@@ -12,16 +12,18 @@ from researchflow.ports.repositories import ResearchReadRepository
 from researchflow.ports.retrieval import RetrievalCandidate, RetrievalResult, Retriever
 from researchflow.ports.runtime import InputVersionMismatchError, RunRepositoryPort
 from researchflow.ports.telemetry import NullTrace
+from researchflow.runtime.policy import source_policy_hash
 
 PHASES = ('collect','retrieve','evidence','claims','verify','report')
 WORKFLOW_VERSION = 'fixed-v1'
 
 
 class FixedWorkflow:
-    def __init__(self, runs: RunRepositoryPort, research: ResearchReadRepository, retriever: Retriever, model: ChatModelPort, execution_mode: Literal['demo','live'] = 'live', collector=None,trace=None) -> None:
+    def __init__(self, runs: RunRepositoryPort, research: ResearchReadRepository, retriever: Retriever, model: ChatModelPort, execution_mode: Literal['demo','live'] = 'live', collector=None,trace=None,knowledge=None) -> None:
         self.runs,self.research,self.retriever,self.model,self.execution_mode = runs,research,retriever,model,execution_mode
         self.collector=collector
         self.trace=trace or NullTrace()
+        self.knowledge=knowledge
 
     workflow_version=WORKFLOW_VERSION
 
@@ -32,6 +34,8 @@ class FixedWorkflow:
             raise ValueError('run/task input is missing')
         if record.input_manifest['workflow_version'] != self.workflow_version or record.input_manifest['execution_mode'] != self.execution_mode:
             raise InputVersionMismatchError('run input policy is incompatible with this driver')
+        if record.input_manifest.get('code_version')!=source_policy_hash():
+            raise InputVersionMismatchError('source or dependency policy changed; create a new run')
         return record,task
 
     async def step(self,handle: RunHandle,phase: str):
@@ -55,6 +59,20 @@ class FixedWorkflow:
                 collected=await self.collector.collect(handle,task.question)
                 collect_ids.extend(collected.source_ids)
             output = StepOutput(data={'source_ids':list(dict.fromkeys(collect_ids))})
+            if self.knowledge is not None:
+                selected=[]
+                characters=0
+                for entry in (await self.knowledge.list_entries(handle.project_id))[:10]:
+                    if entry.status!='active':
+                        continue
+                    context=await self.knowledge.verification_context(handle.project_id,entry.verification_id)
+                    if not any(e.anchor.snapshot_id in collect_ids for e in context.result.evidences):
+                        continue
+                    if characters+len(context.claim.text)>4000:
+                        continue
+                    selected.append({'knowledge_id':entry.knowledge_id,'text':context.claim.text,'status':entry.status,'verification_id':entry.verification_id,'report_id':entry.report_id})
+                    characters+=len(context.claim.text)
+                output=StepOutput(data={**output.data,'project_knowledge':selected})
         elif phase == 'retrieve':
             source_ids = tuple(outputs['collect'].data['source_ids'])
             result = await self.retriever.search(handle.project_id,task.question,source_ids) if source_ids else RetrievalResult((),'lexical',None)
@@ -64,7 +82,7 @@ class FixedWorkflow:
             result = RetrievalResult(tuple(RetrievalCandidate(**c) for c in found['candidates']),found['mode'],found['embedding_version'])
             output = StepOutput(evidences=EvidenceSelector().select(result))
         elif phase == 'claims':
-            claims = await ClaimExtractor(self.model,max_claims=4).extract(task,outputs['evidence'].evidences)
+            claims = await ClaimExtractor(self.model,max_claims=4).extract(task,outputs['evidence'].evidences,project_knowledge=tuple(outputs['collect'].data.get('project_knowledge',())))
             output = StepOutput(claims=claims)
         elif phase == 'verify':
             snapshots = []

@@ -73,6 +73,8 @@ class RunRepository:
         manifest.setdefault('prompt_version',CLAIM_PROMPT_VERSION)
         manifest.setdefault('model_version','unconfigured')
         manifest.setdefault('execution_mode','live')
+        from researchflow.runtime.policy import source_policy_hash
+        manifest.setdefault('code_version',source_policy_hash())
         now = await self.now(session)
         row = RunRow(project_id=project_id,task_id=task_id,run_id=uuid4().hex,state='queued',epoch=0,owner_id=None,lease_until=None,cancel_requested=False,input_version=input_version,input_manifest=manifest,created_at=now,updated_at=now)
         session.add(row)

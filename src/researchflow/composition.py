@@ -43,18 +43,21 @@ class ConfiguredWorkflow:
 
     async def execute(self, handle):
         record=await self.runs.get_run(handle.project_id,handle.run_id)
-        if record is None or record.input_manifest['execution_mode']!=self.mode:
-            raise InputVersionMismatchError('worker mode differs from persisted run input')
-        model=DemoCaseModel(record.input_manifest.get('demo_case','supported')) if self.mode=='demo' else self.model
+        if record is None:
+            raise InputVersionMismatchError('persisted run input is missing')
+        mode=record.input_manifest['execution_mode']
+        if mode=='live' and isinstance(self.model,DemoCaseModel):
+            raise InputVersionMismatchError('live provider is not configured for this Worker')
+        model=DemoCaseModel(record.input_manifest.get('demo_case','supported')) if mode=='demo' else self.model
         store=BudgetRepository(self.runs.database,self.runs)
-        context=self.context_window if self.mode=='live' else 65536
+        context=self.context_window if mode=='live' else 65536
         runtime=ModelRuntime(model,store,context_window=context,price=self.price,model_name=record.input_manifest.get('model_version','configured'),trace=self.trace)
         key=(handle.run_id,handle.epoch)
         self.runtimes[key]=runtime
         try:
             await runtime.tick(handle)
             retriever=self.retriever
-            if self.mode=='live' and self.retriever.embeddings:
+            if mode=='live' and self.retriever.embeddings:
                 from researchflow.runtime.embedding_runtime import BudgetedEmbeddings
                 retriever=PostgresRetriever(self.runs.database,BudgetedEmbeddings(self.retriever.embeddings,store,handle,context,self.trace))
             from researchflow.runtime.graph_workflow import GraphWorkflow
@@ -75,7 +78,9 @@ class ConfiguredWorkflow:
                 ingestion=IngestSource(self.research,BlobStore(Path(os.getenv('RF_BLOB_ROOT','.researchflow-data/blobs'))),DocumentParser(),fetcher)
                 registry=ToolRegistry(self.runs,store,ArxivSearch(fetcher),ingestion,self.research,retriever)
                 collector=MinimalReAct(BoundChatModel(runtime,handle),registry,store,Principal('owner',(handle.project_id,)))
-            return await driver(BudgetedRuns(self.runs,runtime),self.research,retriever,BoundChatModel(runtime,handle),self.mode,collector,trace=self.trace).execute(handle)
+            from researchflow.infrastructure.storage.knowledge_repository import KnowledgeRepository
+            knowledge=KnowledgeRepository(self.runs.database,self.research)
+            return await driver(BudgetedRuns(self.runs,runtime),self.research,retriever,BoundChatModel(runtime,handle),mode,collector,trace=self.trace,knowledge=knowledge).execute(handle)
         finally:
             self.runtimes.pop(key,None)
 
@@ -91,15 +96,16 @@ async def worker_resources(mode: Literal['demo','live'], owner_id: str | None = 
         database = Database(url)
         stack.push_async_callback(database.close)
         client = await stack.enter_async_context(httpx.AsyncClient(timeout=60,trust_env=False))
-        model = OpenAIChatModel(client,OpenAICompatibleConfig(os.environ['RF_LLM_BASE_URL'],os.environ['RF_LLM_API_KEY'],os.environ['RF_LLM_MODEL'])) if mode == 'live' else DemoCaseModel()
+        live_available=all(os.getenv(k) for k in ('RF_LLM_BASE_URL','RF_LLM_API_KEY','RF_LLM_MODEL','RF_CONTEXT_WINDOW'))
+        model = OpenAIChatModel(client,OpenAICompatibleConfig(os.environ['RF_LLM_BASE_URL'],os.environ['RF_LLM_API_KEY'],os.environ['RF_LLM_MODEL'])) if live_available else DemoCaseModel()
         research = ResearchRepository(database)
         runs = RunRepository(database,research)
         from researchflow.settings import Settings
-        retriever=PostgresRetriever(database,configured_embeddings(Settings.from_env(),client) if mode=='live' else None)
+        retriever=PostgresRetriever(database,configured_embeddings(Settings.from_env(),client) if live_available else None)
         from researchflow.infrastructure.telemetry.otel import OpenTelemetryTrace
         trace=OpenTelemetryTrace(endpoint=os.getenv('RF_OTLP_TRACES_ENDPOINT'))
         stack.callback(trace.close)
-        workflow = ConfiguredWorkflow(runs,research,retriever,model,mode,context_window=int(os.environ['RF_CONTEXT_WINDOW']) if mode=='live' else None,trace=trace)
+        workflow = ConfiguredWorkflow(runs,research,retriever,model,mode,context_window=int(os.environ['RF_CONTEXT_WINDOW']) if live_available else None,trace=trace)
         yield Worker(runs,workflow,owner_id or 'worker-' + uuid4().hex,on_heartbeat=workflow.tick,trace=trace)
 
 

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Header, Request
 
 from researchflow.api.auth import require_principal, require_project
 from researchflow.api.errors import APIError
-from researchflow.api.schemas import ResumeInput, ReviewInput, RunStart
+from researchflow.api.schemas import ResumeInput, ReviewInput, RunMetricsResponse, RunStart
 from researchflow.application.claims import CLAIM_PROMPT_VERSION
 from researchflow.application.retrieval import INDEX_VERSION
 from researchflow.domain.access import Principal
@@ -17,7 +17,8 @@ router = APIRouter(tags=['runs'])
 
 
 def policy_version(settings,mode: str,driver: str = 'fixed') -> str:
-    policy = [driver+'-v1',mode,settings.llm_model if mode=='live' else 'demo:fixed-case-v1',CLAIM_PROMPT_VERSION,INDEX_VERSION]
+    from researchflow.runtime.policy import source_policy_hash
+    policy = [driver+'-v1',mode,settings.llm_model if mode=='live' else 'demo:fixed-case-v1',CLAIM_PROMPT_VERSION,INDEX_VERSION,source_policy_hash(),settings.context_window if mode=='live' else None,settings.embedding_model if mode=='live' else None,settings.embedding_dimensions if mode=='live' else None]
     return sha256(json.dumps(policy,ensure_ascii=False).encode()).hexdigest()
 
 
@@ -28,6 +29,8 @@ async def start_run(task_id: str,data: RunStart,request: Request,principal: Prin
     mode = data.mode or settings.execution_mode
     if mode == 'live' and not settings.live_configured:
         raise APIError(409,'configuration_missing','Live mode requires a configured model provider. Select the explicit demo mode to run fixtures.')
+    if data.collect_sources and mode=='demo':
+        raise APIError(409,'demo_tools_disabled','External source collection requires an explicit live research run.')
     if not idempotency_key:
         raise APIError(400,'idempotency_key_required','Provide an Idempotency-Key to start research.')
     task = await request.app.state.resources.research.get_task(data.project_id,task_id)
@@ -99,3 +102,29 @@ async def usage_summary(run_id: str, project_id: str, request: Request):
     costs=[record['estimated_cost'] for record in records]
     total=sum(costs) if costs and all(cost is not None for cost in costs) else None
     return {'attempts':records,'estimated_cost':total,'currency':'USD','usage_known':bool(records) and all(record['input_tokens'] is not None and record['output_tokens'] is not None for record in records)}
+
+
+@router.get('/api/runs/{run_id}/metrics',dependencies=[Depends(require_project)],response_model=RunMetricsResponse)
+async def run_metrics(run_id: str,project_id: str,request: Request):
+    from researchflow.infrastructure.telemetry.metrics import execution_metrics
+    resources=request.app.state.resources
+    record=await resources.runs.get_run(project_id,run_id)
+    if record is None:
+        raise APIError(404,'not_found','Run was not found.')
+    events=[]
+    cursor=0
+    while page:=await resources.runs.list_events(project_id,run_id,cursor):
+        events.extend(page)
+        cursor=page[-1]['event_id']
+    usage=await resources.budgets.list_usage(project_id,run_id)
+    metrics=execution_metrics(events,usage)
+    reports=await resources.research.list_reports(project_id,record.task_id)
+    latest=next((report for report in reports if report.run_id==run_id),None)
+    distribution={status:0 for status in ('supported','contradicted','insufficient','inconclusive')}
+    coverage=None
+    if latest:
+        result=await resources.research.get_result(project_id,latest.report_id)
+        for verification in result.verifications:
+            distribution[verification.status]+=1
+        coverage=sum(bool(v.accepted_evidence_ids) for v in result.verifications)/len(result.verifications) if result.verifications else None
+    return {**metrics,'verification_distribution':distribution,'citation_coverage':coverage}
