@@ -73,7 +73,8 @@ async def test_pdf_to_retrieved_anchored_evidence_report_survives_reopen(databas
     from researchflow.application.reports import ReportBuilder
     from researchflow.application.evidence import validate_anchor
     from researchflow.domain.reports import ReportInputs, ResearchResult
-    from researchflow.infrastructure.llm.demo_model import DemoCaseModel
+    from researchflow.ports.model import ChatResponse
+    import json
     from researchflow.infrastructure.sources.parsers import DocumentParser
     from researchflow.infrastructure.storage.blob_store import BlobStore
     from researchflow.infrastructure.storage.database import Database
@@ -92,11 +93,21 @@ async def test_pdf_to_retrieved_anchored_evidence_report_survives_reopen(databas
     for item in evidence:
         validate_anchor(item,source)
     await repository.add_evidence_batch('p',evidence)
-    model = DemoCaseModel('supported')
+    class PDFFixtureModel:
+        async def complete(self, request):
+            data = json.loads(request.messages[1].content)
+            refs = [e['evidence_id'] for e in data['evidence']]
+            if request.operation == 'claims':
+                payload = {'claims':[{'text':'中文实验样本为十二个','evidence_ids':refs,'qualifiers':[]}]}
+            else:
+                payload = {'verifications':[{'claim_id':c['claim_id'],'status':'supported','evidence_ids':refs,'quotes':[{'evidence_id':e['evidence_id'],'quote':e['text']} for e in data['evidence']],'rationale':'Explicit deterministic PDF fixture, not model quality.'} for c in data['claims']]}
+            return ChatResponse(json.dumps(payload,ensure_ascii=False),model='demo:pdf-fixture')
+    model = PDFFixtureModel()
     claims = await ClaimExtractor(model).extract(task,evidence)
     verification = await ClaimVerifier(model).verify(claims,evidence,(source,))
-    report = ReportBuilder().build(ReportInputs('p','t','run',claims,verification,evidence,()),execution_mode='demo')
-    result = ResearchResult('p','t','run',report,claims,verification,evidence,())
+    report = ReportBuilder().build(ReportInputs('p','t','run',claims,verification,evidence,(),task.question,'demo'))
+    assert report.conclusion_claim_ids
+    result = ResearchResult('p','t','run',report,claims,verification,evidence,(),'demo')
     saved = await repository.save_result(result)
     reopened = Database(str(database.engine.url.render_as_string(hide_password=False)))
     try:

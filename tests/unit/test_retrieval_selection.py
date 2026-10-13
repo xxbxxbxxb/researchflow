@@ -1,5 +1,6 @@
 import importlib
 from datetime import datetime, timezone
+from dataclasses import replace
 
 import pytest
 
@@ -16,7 +17,7 @@ def test_chunks_keep_offsets_and_selection_removes_overlapping_ranges():
     chunks = m.chunk_snapshot(snapshot)
     assert [(c.start,c.end) for c in chunks] == [(0,800),(700,1500),(1400,2000)]
     assert all(snapshot.pages[0].text[c.start:c.end] == c.text for c in chunks)
-    result = types.RetrievalResult(tuple(chunks),'lexical',None)
+    result = types.RetrievalResult((*chunks, replace(chunks[0], chunk_id='duplicate')),'lexical',None)
     evidence = m.EvidenceSelector().select(result)
-    assert len(evidence) == 2
+    assert len(evidence) == 3
     assert m.EvidenceSelector().select(types.RetrievalResult((),'lexical',None)) == ()
