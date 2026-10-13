@@ -83,3 +83,33 @@ async def test_follow_up_is_only_a_draft_preserving_parent_and_claim_relations(d
     assert not await RunRepository(database).list_runs('p')
     with pytest.raises(ValueError):
         await knowledge.draft_follow_up('p','t','Bad scope',('not-a-claim',))
+
+
+@pytest.mark.asyncio
+async def test_fixed_workflow_pauses_after_report_and_authorized_review_finishes_without_model(database,tmp_path):
+    from test_task_api import authenticated_api
+    from researchflow.runtime.fixed_workflow import FixedWorkflow
+    from researchflow.runtime.worker import Worker
+    from researchflow.infrastructure.llm.demo_model import DemoCaseModel
+    async with authenticated_api(database,tmp_path) as (client,app):
+        resources = app.state.resources
+        pid = (await client.post('/api/projects',json={'name':'Review project'})).json()['project_id']
+        tid = (await client.post(f'/api/projects/{pid}/tasks',json={'question':'No sources'})).json()['task_id']
+        response = await client.post(f'/api/tasks/{tid}/runs',json={'project_id':pid,'mode':'demo','require_review':True},headers={'idempotency-key':'review'})
+        assert response.status_code == 201,response.text
+        rid = response.json()['run_id']
+        class NoModel:
+            calls = 0
+            async def complete(self,request):
+                self.calls += 1
+                pytest.fail('an empty-source review must not call a model')
+        model = NoModel()
+        workflow = FixedWorkflow(resources.runs,resources.research,resources.retriever,model,'demo')
+        await Worker(resources.runs,workflow,'review-worker').run_once()
+        assert (await resources.runs.get_run(pid,rid)).state == 'awaiting_review'
+        reports = await resources.research.list_reports(pid,tid)
+        approved = await client.post(f'/api/runs/{rid}/review',params={'project_id':pid},json={'action':'approve','comment':'Checked insufficiency.'})
+        assert approved.status_code == 200,approved.text
+        assert approved.json()['state'] == 'succeeded'
+        assert len(await resources.research.list_reports(pid,tid)) == len(reports) == 1
+        assert model.calls == 0
