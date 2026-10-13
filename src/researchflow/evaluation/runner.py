@@ -4,6 +4,7 @@ from dataclasses import asdict
 from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 import httpx
@@ -18,7 +19,7 @@ from researchflow.evaluation.metrics import compute_metrics
 from researchflow.infrastructure.llm.chat_model import OpenAIChatModel
 from researchflow.infrastructure.llm.openai_compatible import OpenAICompatibleConfig
 from researchflow.ports.model import ChatModelPort, ChatResponse
-from researchflow.runtime.budget import MemoryBudgetRepository
+from researchflow.runtime.budget import MemoryBudgetRepository, price_from_env
 from researchflow.runtime.model_runtime import BoundChatModel, ModelRuntime
 
 
@@ -27,7 +28,7 @@ class EvaluationRunner:
         if mode not in ('contract','live'):
             raise ValueError('unknown evaluation mode')
         configured=all(os.getenv(k) for k in ('RF_LLM_BASE_URL','RF_LLM_API_KEY','RF_LLM_MODEL','RF_CONTEXT_WINDOW'))
-        metadata={'verifier_version':VERIFIER_VERSION,'material':'full abstract, no gold label/rationale in live prompt','strategy_hash':sha256(Path(__file__).parents[1].joinpath('application/verification.py').read_bytes()).hexdigest(),'created_at':datetime.now(UTC).isoformat(),'input_tokens':None,'output_tokens':None,'estimated_cost':None}
+        metadata: dict[str,Any]={'verifier_version':VERIFIER_VERSION,'material':'full abstract, no gold label/rationale in live prompt','strategy_hash':sha256(Path(__file__).parents[1].joinpath('application/verification.py').read_bytes()).hexdigest(),'created_at':datetime.now(UTC).isoformat(),'input_tokens':None,'output_tokens':None,'estimated_cost':None}
         if mode=='live' and not configured:
             report=EvaluationReport('not_run',mode,False,len(dataset),(),None,{**metadata,'reason':'configuration_missing'})
         else:
@@ -49,7 +50,7 @@ class EvaluationRunner:
                     else:
                         provider=OpenAIChatModel(client,OpenAICompatibleConfig(os.environ['RF_LLM_BASE_URL'],os.environ['RF_LLM_API_KEY'],os.environ['RF_LLM_MODEL']))
                     handle=RunHandle(uuid4().hex,'evaluation','eval-task',1,'evaluation')
-                    runtime=ModelRuntime(provider,MemoryBudgetRepository(handle),65536 if mode=='contract' else int(os.environ['RF_CONTEXT_WINDOW']))
+                    runtime=ModelRuntime(provider,MemoryBudgetRepository(handle),65536 if mode=='contract' else int(os.environ['RF_CONTEXT_WINDOW']),price=price_from_env() if mode=='live' else None)
                     try:
                         verdict=(await ClaimVerifier(BoundChatModel(runtime,handle)).verify((claim,),(evidence,),(snapshot,)))[0]
                         predictions.append(Prediction(case.case_id,case.gold,verdict.status,verdict.accepted_evidence_ids,(eid,)))

@@ -36,7 +36,7 @@ async def start_run(task_id: str,data: RunStart,request: Request,principal: Prin
     task = await request.app.state.resources.research.get_task(data.project_id,task_id)
     if task is None:
         raise APIError(404,'not_found','Task was not found in the project.')
-    manifest = {'execution_mode':mode,'demo_case':data.demo_case,'model_version':settings.llm_model if mode=='live' else 'demo:fixed-case-v1','workflow_version':data.driver+'-v1','require_review':data.require_review,'collect_sources':data.collect_sources}
+    manifest = {'execution_mode':mode,'demo_case':data.demo_case,'model_version':settings.llm_model if mode=='live' else 'demo:fixed-case-v1','workflow_version':data.driver+'-v1','require_review':data.require_review,'collect_sources':data.collect_sources,'context_window':settings.context_window if mode=='live' else None,'embedding_model':settings.embedding_model if mode=='live' else None,'embedding_dimensions':settings.embedding_dimensions if mode=='live' else None,'limits':data.limits.model_dump() if data.limits else {}}
     payload = {**data.model_dump(),'mode':mode,'task_id':task_id,'actor_id':principal.actor_id}
     fingerprint = sha256(json.dumps(payload,sort_keys=True,separators=(',',':')).encode()).hexdigest()
     try:

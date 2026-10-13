@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
 from researchflow.domain.claims import Claim, Verification
 from researchflow.domain.knowledge import KnowledgeEntry
@@ -28,11 +28,21 @@ class TaskInput(StrictInput):
     parent_task_id: str | None = None
 
 
+class BudgetInput(StrictInput):
+    max_steps: StrictInt=Field(default=12,ge=1,le=12)
+    max_tool_calls: StrictInt=Field(default=20,ge=1,le=20)
+    max_model_calls: StrictInt=Field(default=16,ge=1,le=16)
+    max_concurrency: StrictInt=Field(default=4,ge=1,le=4)
+    active_timeout_seconds: float=Field(default=300,gt=0,le=300,allow_inf_nan=False,strict=True)
+    operation_timeout_seconds: float=Field(default=60,gt=0,le=60,allow_inf_nan=False,strict=True)
+
+
 class RunStart(StrictInput):
     project_id: str = Field(min_length=1,max_length=200)
     mode: Literal['demo','live'] | None = None
     driver: Literal['fixed','graph'] = 'fixed'
     collect_sources: bool = False
+    limits: BudgetInput | None = None
     require_review: bool = False
     demo_case: Literal['supported','contradicted','insufficient','invalid-citation'] = 'supported'
 

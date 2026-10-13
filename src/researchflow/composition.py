@@ -48,8 +48,12 @@ class ConfiguredWorkflow:
         mode=record.input_manifest['execution_mode']
         if mode=='live' and isinstance(self.model,DemoCaseModel):
             raise InputVersionMismatchError('live provider is not configured for this Worker')
+        if mode=='live' and getattr(self.model,'config',None) is not None:
+            if record.input_manifest['model_version']!=self.model.config.model or record.input_manifest.get('context_window')!=self.context_window:
+                raise InputVersionMismatchError('model or context policy changed; create a new run')
         model=DemoCaseModel(record.input_manifest.get('demo_case','supported')) if mode=='demo' else self.model
-        store=BudgetRepository(self.runs.database,self.runs)
+        from researchflow.domain.usage import RunLimits
+        store=BudgetRepository(self.runs.database,self.runs,RunLimits(**record.input_manifest.get('limits',{})))
         context=self.context_window if mode=='live' else 65536
         runtime=ModelRuntime(model,store,context_window=context,price=self.price,model_name=record.input_manifest.get('model_version','configured'),trace=self.trace)
         key=(handle.run_id,handle.epoch)
@@ -105,7 +109,8 @@ async def worker_resources(mode: Literal['demo','live'], owner_id: str | None = 
         from researchflow.infrastructure.telemetry.otel import OpenTelemetryTrace
         trace=OpenTelemetryTrace(endpoint=os.getenv('RF_OTLP_TRACES_ENDPOINT'))
         stack.callback(trace.close)
-        workflow = ConfiguredWorkflow(runs,research,retriever,model,mode,context_window=int(os.environ['RF_CONTEXT_WINDOW']) if live_available else None,trace=trace)
+        from researchflow.runtime.budget import price_from_env
+        workflow = ConfiguredWorkflow(runs,research,retriever,model,mode,context_window=int(os.environ['RF_CONTEXT_WINDOW']) if live_available else None,trace=trace,price=price_from_env())
         yield Worker(runs,workflow,owner_id or 'worker-' + uuid4().hex,on_heartbeat=workflow.tick,trace=trace)
 
 

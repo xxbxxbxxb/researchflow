@@ -32,6 +32,16 @@ def price_usage(usage: ModelUsage, price: PriceConfig | None) -> ModelUsage:
     return replace(usage,estimated_cost=cost,price_version=price.version)
 
 
+def price_from_env():
+    import os
+    values=[os.getenv(k) for k in ('RF_PRICE_VERSION','RF_INPUT_PRICE_PER_MILLION','RF_OUTPUT_PRICE_PER_MILLION')]
+    if not any(values):
+        return None
+    if not all(values):
+        raise ValueError('price version and both USD rates must be configured together')
+    return PriceConfig(values[0],float(values[1]),float(values[2]))
+
+
 class MemoryBudgetRepository:
     """The same policy for a one-shot CLI run, whose process is not resumable."""
     def __init__(self, handle: RunHandle, limits: RunLimits | None = None) -> None:

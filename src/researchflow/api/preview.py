@@ -30,7 +30,8 @@ async def preview(run_id: str,project_id: str,request: Request):
         raise APIError(409,'run_not_active','Preview shares the active research budget and requires an active run.')
     mode=record.input_manifest['execution_mode']
     model=DemoStreamModel() if mode=='demo' else OpenAIStreamModel(resources.client,OpenAICompatibleConfig(settings.llm_base_url,settings.llm_api_key,settings.llm_model))
-    runtime=ModelRuntime(model,resources.budgets,65536 if mode=='demo' else settings.context_window)
+    from researchflow.runtime.budget import price_from_env
+    runtime=ModelRuntime(model,resources.budgets,65536 if mode=='demo' else settings.context_window,price=price_from_env())
     handle=RunHandle(run_id,project_id,record.task_id,record.epoch,record.owner_id)
     preview_id=uuid4().hex
     async def events():

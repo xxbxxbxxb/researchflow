@@ -44,3 +44,16 @@ Task 11 knowledge core GREEN: CI38392021442/job115277872608 passed165 tests. Fix
 Executor restored after Task 11. Pending local authored changes were backed up, the remote tree was restored into the isolated worktree, and native verification resumed. CI38392396244: 166 passed, including fixed review wait/resolution.
 
 Task 12 complete: CI38403827137 passed168 Python tests and5 actual Chromium scenarios. npm ci, generated API contract drift check, TypeScript typecheck and production build passed. Desktop and390px screenshots were visually inspected. Actual browser tests covered PDF→research→report→anchored original→knowledge→explicit follow-up; invalid citation failure; double start/refresh idempotency; background Worker/SSE updates preserving an open evidence drawer and unsaved input; refresh preserving the original250px scroll; filter preservation on back navigation. The refreshed-scroll regression was observed RED in CI38402145622 and GREEN in CI38403298215. The stale task cache regression was observed in CI38399810187 and resolved before navigation. Native executor remains intermittently offline; authoritative code and actual verification are preserved in this branch.
+
+## Continuation verification
+The native executor disconnected again (409 environment_offline) after the main implementation. Pending reversible changes are preserved through the authorized connector and verified by CI; no native command completion is inferred.
+
+CI38426178282:204 actual PostgreSQL/backend tests and5 Chromium scenarios passed.
+CI38429275388:actual Compose build/restart passed with original Blob bytes, report, knowledge and9 checkpoints. Windows Unicode/autocrlf and overlapping runtime clock regressions were reproduced then fixed.
+CI38430638834:Ubuntu/Windows Python3.11/3.12 core checks all passed; real PostgreSQL213 tests passed and a newly introduced mixed-mode test failed before its fix.
+
+Subsequent local contracts: reviewed knowledge context, source policy guard, request-limit input and versioned pricing were observed RED then GREEN;178 core tests passed,40 database-dependent cases explicitly skipped locally. Full final CI and independent review are pending.
+
+Ruling: execute final reversible steps through the authorized connector while the native executor is offline. Cost if wrong: native wheel checks cannot be claimed; actual CI must supply verification.
+Ruling: fingerprint source and key dependencies conservatively. Cost if wrong: a compatible patch can require a new run; old reports remain available.
+Ruling: accumulate one locked DB active clock for overlapping Worker/preview runtimes, with per-operation monotonic deadlines. Cost if wrong: DB clock authority differs from a single-process counter, but avoids double charging concurrent active time.
