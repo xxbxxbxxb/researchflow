@@ -86,3 +86,12 @@ async def test_empty_or_refused_output_is_not_a_claim():
     for output in ['', 'I cannot comply']:
         with pytest.raises(ValueError):
             await app.ClaimExtractor(SequenceModel([output])).extract(task, (item,))
+
+
+@pytest.mark.asyncio
+async def test_changed_evidence_binding_produces_new_claim_identity():
+    app, task, item = fixture()
+    _, other = manual_evidence("project-a", Evidence("t:E002", "replication", "p2", "The sample size was 12."))
+    first = (await app.ClaimExtractor(SequenceModel([json.dumps({"claims":[payload()]})])).extract(task,(item,)))[0]
+    second = (await app.ClaimExtractor(SequenceModel([json.dumps({"claims":[payload(ids=["t:E002"])]})])).extract(task,(other,)))[0]
+    assert first.claim_id != second.claim_id

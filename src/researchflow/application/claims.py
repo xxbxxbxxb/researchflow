@@ -39,7 +39,7 @@ class ClaimExtractor:
         assert payload is not None
         if len(payload['claims']) > 12:
             raise ValueError('claim output exceeds 12 claims')
-        claims: dict[str, Claim] = {}
+        claims: dict[tuple[str, tuple[str, ...]], Claim] = {}
         for row in payload['claims']:
             if not isinstance(row, dict) or not isinstance(row.get('text'), str):
                 raise ValueError('claim must contain text')
@@ -50,8 +50,10 @@ class ClaimExtractor:
             if not isinstance(qualifiers, list) or any(not isinstance(x,str) for x in qualifiers):
                 raise ValueError('claim qualifiers must be strings')
             text = row['text'].strip()
-            claim_id = sha256((task.task_id+'\0'+CLAIM_PROMPT_VERSION+'\0'+text).encode()).hexdigest()[:32]
-            previous = claims.get(claim_id)
+            key = (text, tuple(qualifiers))
+            previous = claims.get(key)
             ids = tuple(dict.fromkeys((previous.proposed_evidence_ids if previous else ()) + tuple(refs)))
-            claims[claim_id] = Claim(claim_id, task.task_id, task.project_id, text, ids, tuple(qualifiers))
+            identity = json.dumps([task.project_id,task.task_id,CLAIM_PROMPT_VERSION,text,sorted(ids),qualifiers],ensure_ascii=False)
+            claim_id = sha256(identity.encode()).hexdigest()[:32]
+            claims[key] = Claim(claim_id, task.task_id, task.project_id, text, ids, tuple(qualifiers))
         return tuple(claims.values())

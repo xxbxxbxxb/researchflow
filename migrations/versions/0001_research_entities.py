@@ -1,18 +1,18 @@
 from alembic import op
-from researchflow.infrastructure.storage.models import Base
 
-revision = '0001'
+revision = "0001"
 down_revision = None
 branch_labels = None
 depends_on = None
 
-INITIAL_TABLES = ('projects','research_tasks','source_snapshots','snapshot_pages','documents','chunks','evidences','claims','claim_evidence_links','verifications','report_versions')
-
+CREATE_STATEMENTS = ['\nCREATE TABLE projects (\n\tproject_id VARCHAR(200) NOT NULL, \n\tname VARCHAR(200) NOT NULL, \n\tbackground TEXT NOT NULL, \n\tPRIMARY KEY (project_id)\n)\n\n', '\nCREATE TABLE research_tasks (\n\tproject_id VARCHAR(200) NOT NULL, \n\ttask_id VARCHAR(200) NOT NULL, \n\tquestion TEXT NOT NULL, \n\tsource_ids JSON NOT NULL, \n\tparent_task_id VARCHAR(200), \n\tPRIMARY KEY (project_id, task_id), \n\tFOREIGN KEY(project_id, parent_task_id) REFERENCES research_tasks (project_id, task_id), \n\tFOREIGN KEY(project_id) REFERENCES projects (project_id)\n)\n\n', '\nCREATE TABLE source_snapshots (\n\tproject_id VARCHAR(200) NOT NULL, \n\tsnapshot_id VARCHAR(200) NOT NULL, \n\tsource_uri TEXT NOT NULL, \n\tcontent_hash VARCHAR(64) NOT NULL, \n\tparser_version VARCHAR(100) NOT NULL, \n\tfetched_at TIMESTAMP WITH TIME ZONE NOT NULL, \n\tPRIMARY KEY (project_id, snapshot_id), \n\tFOREIGN KEY(project_id) REFERENCES projects (project_id)\n)\n\n', '\nCREATE TABLE claims (\n\tproject_id VARCHAR(200) NOT NULL, \n\tclaim_id VARCHAR(200) NOT NULL, \n\ttask_id VARCHAR(200) NOT NULL, \n\tdata JSON NOT NULL, \n\tPRIMARY KEY (project_id, claim_id), \n\tFOREIGN KEY(project_id, task_id) REFERENCES research_tasks (project_id, task_id)\n)\n\n', '\nCREATE TABLE documents (\n\tproject_id VARCHAR(200) NOT NULL, \n\tdocument_id VARCHAR(200) NOT NULL, \n\tsnapshot_id VARCHAR(200) NOT NULL, \n\ttitle TEXT NOT NULL, \n\tPRIMARY KEY (project_id, document_id), \n\tFOREIGN KEY(project_id, snapshot_id) REFERENCES source_snapshots (project_id, snapshot_id)\n)\n\n', '\nCREATE TABLE report_versions (\n\tproject_id VARCHAR(200) NOT NULL, \n\treport_id VARCHAR(200) NOT NULL, \n\ttask_id VARCHAR(200) NOT NULL, \n\trun_id VARCHAR(200) NOT NULL, \n\tversion INTEGER NOT NULL, \n\tdata JSON NOT NULL, \n\tcreated_at TIMESTAMP WITH TIME ZONE NOT NULL, \n\tPRIMARY KEY (project_id, report_id), \n\tFOREIGN KEY(project_id, task_id) REFERENCES research_tasks (project_id, task_id)\n)\n\n', '\nCREATE TABLE snapshot_pages (\n\tproject_id VARCHAR(200) NOT NULL, \n\tsnapshot_id VARCHAR(200) NOT NULL, \n\tnumber INTEGER NOT NULL, \n\ttext TEXT NOT NULL, \n\tPRIMARY KEY (project_id, snapshot_id, number), \n\tFOREIGN KEY(project_id, snapshot_id) REFERENCES source_snapshots (project_id, snapshot_id)\n)\n\n', '\nCREATE TABLE chunks (\n\tproject_id VARCHAR(200) NOT NULL, \n\tchunk_id VARCHAR(200) NOT NULL, \n\tsnapshot_id VARCHAR(200) NOT NULL, \n\tpage INTEGER NOT NULL, \n\tstart INTEGER NOT NULL, \n\t"end" INTEGER NOT NULL, \n\ttext TEXT NOT NULL, \n\tembedding VECTOR, \n\tembedding_version VARCHAR(200), \n\tPRIMARY KEY (project_id, chunk_id), \n\tFOREIGN KEY(project_id, snapshot_id, page) REFERENCES snapshot_pages (project_id, snapshot_id, number)\n)\n\n', '\nCREATE TABLE evidences (\n\tproject_id VARCHAR(200) NOT NULL, \n\tevidence_id VARCHAR(200) NOT NULL, \n\tsnapshot_id VARCHAR(200) NOT NULL, \n\tpage INTEGER NOT NULL, \n\tdata JSON NOT NULL, \n\tcreated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, \n\tPRIMARY KEY (project_id, evidence_id), \n\tFOREIGN KEY(project_id, snapshot_id, page) REFERENCES snapshot_pages (project_id, snapshot_id, number)\n)\n\n', '\nCREATE TABLE verifications (\n\tproject_id VARCHAR(200) NOT NULL, \n\tverification_id VARCHAR(200) NOT NULL, \n\tclaim_id VARCHAR(200) NOT NULL, \n\tstatus VARCHAR(30) NOT NULL, \n\tdata JSON NOT NULL, \n\tPRIMARY KEY (project_id, verification_id), \n\tFOREIGN KEY(project_id, claim_id) REFERENCES claims (project_id, claim_id)\n)\n\n', '\nCREATE TABLE claim_evidence_links (\n\tproject_id VARCHAR(200) NOT NULL, \n\tclaim_id VARCHAR(200) NOT NULL, \n\tevidence_id VARCHAR(200) NOT NULL, \n\trelationship VARCHAR(20) NOT NULL, \n\tPRIMARY KEY (project_id, claim_id, evidence_id, relationship), \n\tFOREIGN KEY(project_id, claim_id) REFERENCES claims (project_id, claim_id), \n\tFOREIGN KEY(project_id, evidence_id) REFERENCES evidences (project_id, evidence_id)\n)\n\n']
+TABLE_NAMES = ['projects', 'research_tasks', 'source_snapshots', 'claims', 'documents', 'report_versions', 'snapshot_pages', 'chunks', 'evidences', 'verifications', 'claim_evidence_links']
 
 def upgrade():
-    op.execute('CREATE EXTENSION IF NOT EXISTS vector')
-    Base.metadata.create_all(op.get_bind(),tables=[Base.metadata.tables[name] for name in INITIAL_TABLES])
-
+    op.execute("CREATE EXTENSION IF NOT EXISTS vector")
+    for statement in CREATE_STATEMENTS:
+        op.execute(statement)
 
 def downgrade():
-    Base.metadata.drop_all(op.get_bind(),tables=[Base.metadata.tables[name] for name in INITIAL_TABLES])
+    for name in reversed(TABLE_NAMES):
+        op.execute("DROP TABLE " + name)

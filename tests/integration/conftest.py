@@ -14,6 +14,9 @@ async def database(tmp_path):
     from researchflow.infrastructure.storage.database import Database
     from researchflow.infrastructure.storage.models import Base
     from sqlalchemy import text
+    from sqlalchemy.engine import make_url
+    if not (make_url(url).database or '').endswith('_test'):
+        pytest.fail('Database fixture requires a dedicated database name ending in _test')
     db = Database(url)
     async with db.engine.begin() as conn:
         await conn.execute(text('CREATE EXTENSION IF NOT EXISTS vector'))
