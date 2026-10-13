@@ -9,7 +9,7 @@ The user approved Native: main agent implements all tasks continuously; one fres
 
 ## Verified tasks
 
-Tasks 1–11 implemented and verified. Tasks 12–20 remain.
+Tasks 1–12 implemented and verified. Task 13 is starting; Tasks 14–20 remain.
 The original 58 tests passed before changes. Real database tests use PostgreSQL 16.15 and pgvector in GitHub Actions; local skips are never counted as database verification.
 
 | Task | Verification evidence |
@@ -42,3 +42,5 @@ CI must later expand to locked dependencies, Python 3.11/3.12 on Ubuntu/Windows,
 Task 11 knowledge core GREEN: CI38392021442/job115277872608 passed165 tests. Fixed review RED: CI38392096808 rejected the missing require_review input before implementation. Knowledge API is now connected; full gate pending.
 
 Executor restored after Task 11. Pending local authored changes were backed up, the remote tree was restored into the isolated worktree, and native verification resumed. CI38392396244: 166 passed, including fixed review wait/resolution.
+
+Task 12 complete: CI38403827137 passed168 Python tests and5 actual Chromium scenarios. npm ci, generated API contract drift check, TypeScript typecheck and production build passed. Desktop and390px screenshots were visually inspected. Actual browser tests covered PDF→research→report→anchored original→knowledge→explicit follow-up; invalid citation failure; double start/refresh idempotency; background Worker/SSE updates preserving an open evidence drawer and unsaved input; refresh preserving the original250px scroll; filter preservation on back navigation. The refreshed-scroll regression was observed RED in CI38402145622 and GREEN in CI38403298215. The stale task cache regression was observed in CI38399810187 and resolved before navigation. Native executor remains intermittently offline; authoritative code and actual verification are preserved in this branch.
