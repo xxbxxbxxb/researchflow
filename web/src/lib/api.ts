@@ -26,7 +26,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(path,{...options,headers,credentials:'same-origin'});
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
-    if (response.status===401 && !path.endsWith('/login')) window.dispatchEvent(new Event('rf:unauthorized'));
+    if (response.status===401 && !path.endsWith('/login')&&!path.endsWith('/session')) window.dispatchEvent(new Event('rf:unauthorized'));
     throw new APIError(response.status,String(payload.code ?? 'request_failed'),String(payload.message ?? '请求暂时无法完成，请稍后重试。'));
   }
   return response.json() as Promise<T>;
