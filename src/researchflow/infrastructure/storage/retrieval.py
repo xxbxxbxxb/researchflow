@@ -28,8 +28,8 @@ class PostgresRetriever:
         async with self.database.session.begin() as session:
             for chunk, vector in zip(chunks, vectors, strict=True):
                 values = {key:getattr(chunk,key) for key in ('project_id','chunk_id','snapshot_id','page','start','end','text')}
-                values.update(embedding=vector, embedding_version=self.namespace)
-                stmt = insert(ChunkRow).values(**values).on_conflict_do_update(index_elements=['project_id','chunk_id'], set_={'embedding':vector, 'embedding_version':self.namespace})
+                values.update(embedding=list(vector) if vector is not None else None, embedding_version=self.namespace)
+                stmt = insert(ChunkRow).values(**values).on_conflict_do_update(index_elements=['project_id','chunk_id'], set_={'embedding':values['embedding'], 'embedding_version':self.namespace})
                 await session.execute(stmt)
 
     async def search(self, project_id: str, query: str, source_ids: tuple[str, ...], top_k: int = 8) -> RetrievalResult:
@@ -56,7 +56,7 @@ class PostgresRetriever:
                 batch = await self.embeddings.embed((query,))
                 if batch.model != self.embeddings.model or batch.dimensions != self.embeddings.dimensions:
                     raise ValueError('index_version_mismatch: query embedding changed')
-                distance = ChunkRow.embedding.cosine_distance(batch.vectors[0])
+                distance = ChunkRow.embedding.cosine_distance(list(batch.vectors[0]))
                 vector_rows = (await session.scalars(select(ChunkRow).where(*filters, ChunkRow.embedding_version == self.namespace, func.vector_dims(ChunkRow.embedding) == batch.dimensions).order_by(distance, ChunkRow.chunk_id).limit(32))).all()
             ranks: dict[str, float] = {}
             rows = {}
