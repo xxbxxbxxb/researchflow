@@ -108,7 +108,8 @@ async def test_pdf_to_retrieved_anchored_evidence_report_survives_reopen(databas
     report = ReportBuilder().build(ReportInputs('p','t','run',claims,verification,evidence,(),task.question,'demo'))
     assert report.conclusion_claim_ids
     result = ResearchResult('p','t','run',report,claims,verification,evidence,(),'demo')
-    saved = await repository.save_result(result)
+    await repository.save_result(result)
+    saved = await repository.get_result('p',report.report_id)
     reopened = Database(str(database.engine.url.render_as_string(hide_password=False)))
     try:
         loaded = await ResearchRepository(reopened).get_result('p',saved.report.report_id)
