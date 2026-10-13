@@ -44,7 +44,24 @@ class ConfiguredWorkflow:
         self.runtimes[key]=runtime
         try:
             await runtime.tick(handle)
-            return await FixedWorkflow(BudgetedRuns(self.runs,runtime),self.research,self.retriever,BoundChatModel(runtime,handle),self.mode).execute(handle)
+            from researchflow.runtime.graph_workflow import GraphWorkflow
+            driver=GraphWorkflow if record.input_manifest['workflow_version']=='graph-v1' else FixedWorkflow
+            collector=None
+            if record.input_manifest.get('collect_sources'):
+                from researchflow.runtime.tools import ToolRegistry
+                from researchflow.runtime.react import MinimalReAct
+                from researchflow.application.ingestion import IngestSource
+                from researchflow.domain.access import Principal
+                from researchflow.infrastructure.sources.arxiv import ArxivSearch
+                from researchflow.infrastructure.sources.safe_http import SourceFetcher
+                from researchflow.infrastructure.sources.parsers import DocumentParser
+                from researchflow.infrastructure.storage.blob_store import BlobStore
+                from pathlib import Path
+                fetcher=SourceFetcher()
+                ingestion=IngestSource(self.research,BlobStore(Path(os.getenv('RF_BLOB_ROOT','.researchflow-data/blobs'))),DocumentParser(),fetcher)
+                registry=ToolRegistry(self.runs,store,ArxivSearch(fetcher),ingestion,self.research,self.retriever)
+                collector=MinimalReAct(BoundChatModel(runtime,handle),registry,store,Principal('owner',(handle.project_id,)))
+            return await driver(BudgetedRuns(self.runs,runtime),self.research,self.retriever,BoundChatModel(runtime,handle),self.mode,collector).execute(handle)
         finally:
             self.runtimes.pop(key,None)
 

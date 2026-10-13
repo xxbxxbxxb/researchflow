@@ -77,7 +77,7 @@ async def test_concurrent_attempts_cannot_send_request_seventeen(database,reposi
     store=storage.BudgetRepository(database,runs)
     runtime=runtime_module.ModelRuntime(provider,store,context_window=65536)
     results=await asyncio.gather(*(runtime.complete(handle,replace(REQUEST,operation=op)) for op in ['claims']*8+['repair']*4+['verify']*4+['collect']*4),return_exceptions=True)
-    assert provider.calls==16 and provider.peak<=4
+    assert provider.calls==16 and provider.peak<=4,[(type(r).__name__,str(r)) for r in results if isinstance(r,Exception)]
     assert sum(isinstance(result,budget.BudgetExceededError) for result in results)==4
     assert (await store.snapshot(handle)).model_calls_used==16
 

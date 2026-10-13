@@ -34,7 +34,7 @@ async def start_run(task_id: str,data: RunStart,request: Request,principal: Prin
     task = await request.app.state.resources.research.get_task(data.project_id,task_id)
     if task is None:
         raise APIError(404,'not_found','Task was not found in the project.')
-    manifest = {'execution_mode':mode,'demo_case':data.demo_case,'model_version':settings.llm_model if mode=='live' else 'demo:fixed-case-v1','workflow_version':data.driver+'-v1','require_review':data.require_review}
+    manifest = {'execution_mode':mode,'demo_case':data.demo_case,'model_version':settings.llm_model if mode=='live' else 'demo:fixed-case-v1','workflow_version':data.driver+'-v1','require_review':data.require_review,'collect_sources':data.collect_sources}
     payload = {**data.model_dump(),'mode':mode,'task_id':task_id,'actor_id':principal.actor_id}
     fingerprint = sha256(json.dumps(payload,sort_keys=True,separators=(',',':')).encode()).hexdigest()
     try:
@@ -71,7 +71,10 @@ async def resume(run_id: str,project_id: str,data: ResumeInput,request: Request)
     if record is None:
         raise APIError(404,'not_found','Run was not found.')
     mode = record.input_manifest['execution_mode']
-    version = data.input_version or policy_version(request.app.state.settings,mode)
+    driver=record.input_manifest['workflow_version'].split('-')[0]
+    version = policy_version(request.app.state.settings,mode,driver)
+    if data.input_version and data.input_version != version:
+        raise APIError(409,'input_version_mismatch','Current execution policy differs from the requested version.')
     return jsonable(await runs.resume(project_id,run_id,version))
 
 

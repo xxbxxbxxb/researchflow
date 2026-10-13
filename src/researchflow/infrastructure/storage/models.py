@@ -267,3 +267,30 @@ class ToolRow(Base):
     output: Mapped[dict[str,Any]] = mapped_column(JSON)
     committed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     __table_args__ = (ForeignKeyConstraint(['project_id','run_id'],['workflow_runs.project_id','workflow_runs.run_id']),)
+
+
+class CheckpointRow(Base):
+    __tablename__='graph_checkpoints'
+    project_id: Mapped[str]=mapped_column(String(200),primary_key=True)
+    run_id: Mapped[str]=mapped_column(String(200),primary_key=True)
+    namespace: Mapped[str]=mapped_column(String(500),primary_key=True)
+    checkpoint_id: Mapped[str]=mapped_column(String(100),primary_key=True)
+    parent_id: Mapped[str | None]=mapped_column(String(100),nullable=True)
+    input_version: Mapped[str]=mapped_column(String(200))
+    checkpoint_data: Mapped[str]=mapped_column(Text)
+    metadata_data: Mapped[str]=mapped_column(Text)
+    __table_args__=(ForeignKeyConstraint(['project_id','run_id'],['workflow_runs.project_id','workflow_runs.run_id']),)
+
+
+class GraphWriteRow(Base):
+    __tablename__='graph_writes'
+    project_id: Mapped[str]=mapped_column(String(200),primary_key=True)
+    run_id: Mapped[str]=mapped_column(String(200),primary_key=True)
+    namespace: Mapped[str]=mapped_column(String(500),primary_key=True)
+    checkpoint_id: Mapped[str]=mapped_column(String(100),primary_key=True)
+    task_id: Mapped[str]=mapped_column(String(200),primary_key=True)
+    idx: Mapped[int]=mapped_column(Integer,primary_key=True)
+    channel: Mapped[str]=mapped_column(String(500))
+    task_path: Mapped[str]=mapped_column(Text)
+    value_data: Mapped[str]=mapped_column(Text)
+    __table_args__=(ForeignKeyConstraint(['project_id','run_id','namespace','checkpoint_id'],['graph_checkpoints.project_id','graph_checkpoints.run_id','graph_checkpoints.namespace','graph_checkpoints.checkpoint_id'],ondelete='CASCADE'),)

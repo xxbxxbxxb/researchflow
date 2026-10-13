@@ -890,9 +890,14 @@ export interface components {
             /**
              * Driver
              * @default fixed
-             * @constant
+             * @enum {string}
              */
-            driver: "fixed";
+            driver: "fixed" | "graph";
+            /**
+             * Collect Sources
+             * @default false
+             */
+            collect_sources: boolean;
             /**
              * Require Review
              * @default false
