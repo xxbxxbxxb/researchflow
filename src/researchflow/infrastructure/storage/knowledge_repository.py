@@ -1,4 +1,5 @@
 from dataclasses import replace
+from uuid import uuid4
 
 from sqlalchemy import select,func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,6 +8,7 @@ from researchflow.domain.claims import Verification,Claim
 from researchflow.domain.errors import ProjectBoundaryError
 from researchflow.domain.knowledge import KnowledgeEntry,FollowUpDraft
 from researchflow.domain.reports import ResearchResult
+from researchflow.domain.runs import RunRecord
 from researchflow.infrastructure.storage.codec import decode_dataclass,jsonable
 from researchflow.infrastructure.storage.database import Database
 from researchflow.infrastructure.storage.models import VerificationRow,ClaimRow,ReportRow,KnowledgeRow,FollowUpRow,TaskRow
@@ -121,6 +123,32 @@ class KnowledgeRepository:
         async with self.database.session() as session:
             rows = (await session.scalars(select(FollowUpRow).where(FollowUpRow.project_id==project_id))).all()
             return tuple(decode_dataclass(FollowUpDraft,row.data) for row in rows)
+
+    async def start_draft(self, project_id: str, draft_id: str, input_version: str, manifest: dict) -> RunRecord:
+        from researchflow.infrastructure.storage.run_repository import RunRepository
+        from researchflow.infrastructure.storage.models import RunRow
+        runs = RunRepository(self.database,self.research)
+        async with self.database.session.begin() as session:
+            row = (await session.scalars(select(FollowUpRow).where(FollowUpRow.project_id==project_id,FollowUpRow.draft_id==draft_id).with_for_update())).one_or_none()
+            if row is None:
+                raise ProjectBoundaryError('follow-up draft is not in this project')
+            if row.started_run_id:
+                run = await session.get(RunRow,(project_id,row.started_run_id))
+                assert run is not None
+                if run.input_version!=input_version or any(run.input_manifest.get(k)!=v for k,v in manifest.items()):
+                    raise ValueError('draft_start_conflict')
+                return runs.record(run)
+            draft = decode_dataclass(FollowUpDraft,row.data)
+            parent = await session.get(TaskRow,(project_id,draft.parent_task_id))
+            if parent is None:
+                raise ProjectBoundaryError('follow-up parent is not in this project')
+            task_id = uuid4().hex
+            session.add(TaskRow(project_id=project_id,task_id=task_id,question=draft.question,source_ids=list(parent.source_ids),parent_task_id=draft.parent_task_id))
+            await session.flush()
+            record = await runs.enqueue_in(session,task_id,project_id,input_version,manifest)
+            row.started_run_id = record.run_id
+            row.data = jsonable(replace(draft,started_run_id=record.run_id))
+            return record
 
     async def candidates(self, project_id: str, knowledge_id: str) -> tuple[Verification,...]:
         # Exact wording proposes review; it never changes accepted knowledge.

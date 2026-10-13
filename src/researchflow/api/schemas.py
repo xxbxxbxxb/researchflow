@@ -1,5 +1,10 @@
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
+from datetime import datetime
+from typing import Any
+from researchflow.domain.sources import AnchoredEvidence,SourceSnapshot
+from researchflow.domain.claims import Claim,Verification
+from researchflow.domain.knowledge import KnowledgeEntry
 
 
 class StrictInput(BaseModel):
@@ -41,3 +46,30 @@ class ResumeInput(StrictInput):
 class ReviewInput(StrictInput):
     action: Literal['approve','reject']
     comment: str = Field(default='',max_length=2000)
+
+
+class EvidenceBundle(BaseModel):
+    evidence: AnchoredEvidence
+    snapshot: SourceSnapshot
+
+
+class KnowledgeRecordResponse(BaseModel):
+    entry: KnowledgeEntry
+    claim: Claim
+    verification: Verification
+    evidences: tuple[AnchoredEvidence,...]
+    replacement_candidates: tuple[Verification,...]
+
+
+class AuthSessionResponse(BaseModel):
+    actor_id: str
+    csrf_token: str
+    execution_mode: Literal['demo','live']
+
+
+class RunEventResponse(BaseModel):
+    event_id: int
+    run_id: str
+    kind: str
+    data: dict[str,Any]
+    created_at: datetime

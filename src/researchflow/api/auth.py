@@ -7,7 +7,7 @@ from argon2.exceptions import VerificationError,InvalidHashError
 from fastapi import APIRouter,Request,Response,Depends
 
 from researchflow.api.errors import APIError
-from researchflow.api.schemas import LoginInput
+from researchflow.api.schemas import LoginInput,AuthSessionResponse
 from researchflow.domain.access import Principal
 from researchflow.infrastructure.storage.session_repository import LoginRateLimitedError
 
@@ -41,7 +41,7 @@ async def require_project(request: Request, project_id: str, principal: Principa
     return project_id
 
 
-@router.post('/login')
+@router.post('/login',response_model=AuthSessionResponse)
 async def login(data: LoginInput, request: Request, response: Response):
     check_origin(request)
     settings = request.app.state.settings
@@ -71,7 +71,7 @@ async def login(data: LoginInput, request: Request, response: Response):
     return {'actor_id':'local-user','csrf_token':csrf,'execution_mode':settings.execution_mode}
 
 
-@router.get('/session')
+@router.get('/session',response_model=AuthSessionResponse)
 async def session_info(request: Request, principal: Principal = Depends(require_principal)):
     return {'actor_id':principal.actor_id,'csrf_token':request.cookies.get('rf_csrf',''),'execution_mode':request.app.state.settings.execution_mode}
 

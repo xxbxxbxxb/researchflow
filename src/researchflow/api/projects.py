@@ -10,11 +10,11 @@ from researchflow.infrastructure.storage.codec import jsonable
 router = APIRouter(prefix='/api/projects',tags=['projects'],dependencies=[Depends(require_principal)])
 
 
-@router.get('')
+@router.get('',response_model=tuple[Project,...])
 async def list_projects(request: Request):
     return jsonable(await request.app.state.resources.research.list_projects())
 
 
-@router.post('',status_code=201)
+@router.post('',status_code=201,response_model=Project)
 async def create_project(data: ProjectInput,request: Request):
     return jsonable(await request.app.state.resources.research.create_project(Project(uuid4().hex,data.name,data.background)))

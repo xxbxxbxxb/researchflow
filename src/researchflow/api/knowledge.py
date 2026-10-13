@@ -4,6 +4,12 @@ from pydantic import Field
 
 from researchflow.api.auth import require_project,require_principal
 from researchflow.api.schemas import StrictInput
+from researchflow.api.schemas import KnowledgeRecordResponse
+from researchflow.domain.knowledge import KnowledgeEntry,FollowUpDraft
+from researchflow.domain.claims import Verification
+from researchflow.domain.runs import RunRecord
+from researchflow.api.runs import policy_version
+from researchflow.api.errors import APIError
 from researchflow.domain.access import Principal
 from researchflow.infrastructure.storage.codec import jsonable
 
@@ -29,7 +35,13 @@ class FollowUpInput(StrictInput):
     claim_ids: list[str] = Field(default_factory=list,max_length=12)
 
 
-@router.get('/knowledge')
+class FollowUpStart(StrictInput):
+    mode: Literal['demo','live'] | None = None
+    demo_case: Literal['supported','contradicted','insufficient','invalid-citation'] = 'supported'
+    require_review: bool = False
+
+
+@router.get('/knowledge',response_model=tuple[KnowledgeRecordResponse,...])
 async def list_knowledge(project_id: str,request: Request):
     storage = request.app.state.resources.knowledge_repository
     records = []
@@ -40,26 +52,42 @@ async def list_knowledge(project_id: str,request: Request):
     return records
 
 
-@router.post('/knowledge/accept',status_code=201)
+@router.post('/knowledge/accept',status_code=201,response_model=KnowledgeEntry)
 async def accept(project_id: str,data: AcceptInput,request: Request,principal: Principal = Depends(require_principal)):
     return jsonable(await request.app.state.resources.knowledge.accept(project_id,data.verification_id,principal.actor_id))
 
 
-@router.post('/verifications/{verification_id}/override',status_code=201)
+@router.post('/verifications/{verification_id}/override',status_code=201,response_model=Verification)
 async def override(project_id: str,verification_id: str,data: OverrideInput,request: Request,principal: Principal = Depends(require_principal)):
     return jsonable(await request.app.state.resources.knowledge.override(project_id,verification_id,data.status,data.reason,principal.actor_id))
 
 
-@router.post('/knowledge/{knowledge_id}/supersede',status_code=201)
+@router.post('/knowledge/{knowledge_id}/supersede',status_code=201,response_model=KnowledgeEntry)
 async def supersede(project_id: str,knowledge_id: str,data: SupersedeInput,request: Request,principal: Principal = Depends(require_principal)):
     return jsonable(await request.app.state.resources.knowledge.supersede(project_id,knowledge_id,data.new_verification_id,principal.actor_id))
 
 
-@router.post('/follow-ups',status_code=201)
+@router.post('/follow-ups',status_code=201,response_model=FollowUpDraft)
 async def draft(project_id: str,data: FollowUpInput,request: Request):
     return jsonable(await request.app.state.resources.knowledge.draft_follow_up(project_id,data.parent_task_id,data.question,tuple(data.claim_ids)))
 
 
-@router.get('/follow-ups')
+@router.get('/follow-ups',response_model=tuple[FollowUpDraft,...])
 async def drafts(project_id: str,request: Request):
     return jsonable(await request.app.state.resources.knowledge_repository.list_drafts(project_id))
+
+
+@router.post('/follow-ups/{draft_id}/start',status_code=201,response_model=RunRecord)
+async def start_draft(project_id: str,draft_id: str,data: FollowUpStart,request: Request):
+    settings = request.app.state.settings
+    mode = data.mode or settings.execution_mode
+    if mode=='live' and not settings.live_configured:
+        raise APIError(409,'configuration_missing','Live mode requires a configured model provider.')
+    manifest = {'execution_mode':mode,'demo_case':data.demo_case,'require_review':data.require_review,'workflow_version':'fixed-v1','model_version':settings.llm_model if mode=='live' else 'demo:fixed-case-v1'}
+    try:
+        record = await request.app.state.resources.knowledge_repository.start_draft(project_id,draft_id,policy_version(settings,mode),manifest)
+    except ValueError as exc:
+        if str(exc)=='draft_start_conflict':
+            raise APIError(409,'idempotency_conflict','This follow-up was already started with different inputs.') from exc
+        raise
+    return jsonable(record)

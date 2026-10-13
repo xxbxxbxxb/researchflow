@@ -6,8 +6,19 @@ from fastapi.responses import StreamingResponse
 
 from researchflow.api.auth import require_project
 from researchflow.api.errors import APIError
+from researchflow.api.schemas import RunEventResponse
 
 router = APIRouter(tags=['runs'],dependencies=[Depends(require_project)])
+
+
+@router.get('/api/runs/{run_id}/event-history',response_model=tuple[RunEventResponse,...])
+async def history(run_id: str,project_id: str,request: Request,after_id: int = 0):
+    runs = request.app.state.resources.runs
+    if await runs.get_run(project_id,run_id) is None:
+        raise APIError(404,'not_found','Run was not found.')
+    if after_id<0:
+        raise APIError(400,'invalid_cursor','Cursor must be nonnegative.')
+    return await runs.list_events(project_id,run_id,after_id)
 
 
 async def event_stream(runs,project_id: str,run_id: str,after_id: int = 0,heartbeat_seconds: float = 15.0):

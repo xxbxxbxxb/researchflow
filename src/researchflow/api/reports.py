@@ -3,21 +3,23 @@ from fastapi import APIRouter,Request,Depends
 from researchflow.api.auth import require_project
 from researchflow.api.errors import APIError
 from researchflow.infrastructure.storage.codec import jsonable
+from researchflow.domain.reports import ResearchResult,ReportVersion
+from researchflow.api.schemas import EvidenceBundle
 
 router = APIRouter(tags=['reports'],dependencies=[Depends(require_project)])
 
 
-@router.get('/api/projects/{project_id}/reports')
+@router.get('/api/projects/{project_id}/reports',response_model=tuple[ReportVersion,...])
 async def list_reports(project_id: str,request: Request,task_id: str | None = None):
     return jsonable(await request.app.state.resources.research.list_reports(project_id,task_id))
 
 
-@router.get('/api/reports/{report_id}')
+@router.get('/api/reports/{report_id}',response_model=ResearchResult)
 async def get_report(report_id: str,project_id: str,request: Request):
     return jsonable(await request.app.state.resources.research.get_result(project_id,report_id))
 
 
-@router.get('/api/evidence/{evidence_id}')
+@router.get('/api/evidence/{evidence_id}',response_model=EvidenceBundle)
 async def get_evidence(evidence_id: str,project_id: str,request: Request):
     resources = request.app.state.resources
     evidence = await resources.research.get_evidence(project_id,evidence_id)

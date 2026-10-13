@@ -6,18 +6,19 @@ from researchflow.api.auth import require_project
 from researchflow.api.errors import APIError
 from researchflow.api.schemas import URLInput
 from researchflow.ports.sources import SourceInput
+from researchflow.domain.sources import SourceSnapshot
 from researchflow.infrastructure.storage.codec import jsonable
 
 router = APIRouter(prefix='/api/projects/{project_id}/sources',tags=['sources'],dependencies=[Depends(require_project)])
 MAX_BYTES = 20 * 1024 * 1024
 
 
-@router.get('')
+@router.get('',response_model=tuple[SourceSnapshot,...])
 async def list_sources(project_id: str,request: Request):
     return jsonable(await request.app.state.resources.research.list_snapshots(project_id))
 
 
-@router.post('',status_code=201)
+@router.post('',status_code=201,response_model=SourceSnapshot)
 async def import_source(project_id: str,request: Request):
     if request.headers.get('content-type','').lower().startswith('multipart/form-data'):
         async with request.form(max_files=1,max_fields=0,max_part_size=MAX_BYTES) as form:
@@ -39,7 +40,7 @@ async def import_source(project_id: str,request: Request):
     return jsonable(snapshot)
 
 
-@router.get('/{snapshot_id}')
+@router.get('/{snapshot_id}',response_model=SourceSnapshot)
 async def get_snapshot(project_id: str,snapshot_id: str,request: Request):
     snapshot = await request.app.state.resources.research.get_snapshot(project_id,snapshot_id)
     if snapshot is None:

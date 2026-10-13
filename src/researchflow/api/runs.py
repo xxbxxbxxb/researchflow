@@ -10,6 +10,7 @@ from researchflow.application.claims import CLAIM_PROMPT_VERSION
 from researchflow.application.retrieval import INDEX_VERSION
 from researchflow.domain.access import Principal
 from researchflow.domain.runs import ReviewDecision
+from researchflow.domain.runs import RunRecord
 from researchflow.infrastructure.storage.codec import jsonable
 
 router = APIRouter(tags=['runs'])
@@ -20,7 +21,7 @@ def policy_version(settings,mode: str,driver: str = 'fixed') -> str:
     return sha256(json.dumps(policy,ensure_ascii=False).encode()).hexdigest()
 
 
-@router.post('/api/tasks/{task_id}/runs',status_code=201)
+@router.post('/api/tasks/{task_id}/runs',status_code=201,response_model=RunRecord)
 async def start_run(task_id: str,data: RunStart,request: Request,principal: Principal = Depends(require_principal),idempotency_key: str | None = Header(default=None)):
     await require_project(request,data.project_id,principal)
     settings = request.app.state.settings
@@ -44,7 +45,7 @@ async def start_run(task_id: str,data: RunStart,request: Request,principal: Prin
     return jsonable(record)
 
 
-@router.get('/api/runs/{run_id}',dependencies=[Depends(require_project)])
+@router.get('/api/runs/{run_id}',dependencies=[Depends(require_project)],response_model=RunRecord)
 async def get_run(run_id: str,project_id: str,request: Request):
     record = await request.app.state.resources.runs.get_run(project_id,run_id)
     if record is None:
@@ -52,17 +53,17 @@ async def get_run(run_id: str,project_id: str,request: Request):
     return jsonable(record)
 
 
-@router.get('/api/projects/{project_id}/runs',dependencies=[Depends(require_project)])
+@router.get('/api/projects/{project_id}/runs',dependencies=[Depends(require_project)],response_model=tuple[RunRecord,...])
 async def list_runs(project_id: str,request: Request,task_id: str | None = None):
     return jsonable(await request.app.state.resources.runs.list_runs(project_id,task_id))
 
 
-@router.post('/api/runs/{run_id}/cancel',dependencies=[Depends(require_project)])
+@router.post('/api/runs/{run_id}/cancel',dependencies=[Depends(require_project)],response_model=RunRecord)
 async def cancel(run_id: str,project_id: str,request: Request):
     return jsonable(await request.app.state.resources.runs.request_cancel(project_id,run_id))
 
 
-@router.post('/api/runs/{run_id}/resume',dependencies=[Depends(require_project)])
+@router.post('/api/runs/{run_id}/resume',dependencies=[Depends(require_project)],response_model=RunRecord)
 async def resume(run_id: str,project_id: str,data: ResumeInput,request: Request):
     runs = request.app.state.resources.runs
     record = await runs.get_run(project_id,run_id)
@@ -73,6 +74,6 @@ async def resume(run_id: str,project_id: str,data: ResumeInput,request: Request)
     return jsonable(await runs.resume(project_id,run_id,version))
 
 
-@router.post('/api/runs/{run_id}/review',dependencies=[Depends(require_project)])
+@router.post('/api/runs/{run_id}/review',dependencies=[Depends(require_project)],response_model=RunRecord)
 async def review(run_id: str,project_id: str,data: ReviewInput,request: Request,principal: Principal = Depends(require_principal)):
     return jsonable(await request.app.state.resources.runs.review(project_id,run_id,ReviewDecision(data.action,principal.actor_id,data.comment)))
