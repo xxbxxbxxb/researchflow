@@ -2,6 +2,7 @@ import os
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Literal
 from uuid import uuid4
+from dataclasses import dataclass
 
 import httpx
 
@@ -45,3 +46,33 @@ async def worker_resources(mode: Literal['demo','live'], owner_id: str | None = 
         runs = RunRepository(database,research)
         workflow = ConfiguredWorkflow(runs,research,PostgresRetriever(database),model,mode)
         yield Worker(runs,workflow,owner_id or 'worker-' + uuid4().hex)
+
+
+@dataclass
+class APIResources:
+    database: Database
+    research: ResearchRepository
+    runs: RunRepository
+    retriever: PostgresRetriever
+    sessions: object
+    blobs: object
+    ingestion: object
+    client: httpx.AsyncClient
+
+
+@asynccontextmanager
+async def api_resources(settings, database: Database | None = None):
+    from researchflow.application.ingestion import IngestSource
+    from researchflow.infrastructure.sources.parsers import DocumentParser
+    from researchflow.infrastructure.sources.safe_http import SourceFetcher
+    from researchflow.infrastructure.storage.blob_store import BlobStore
+    from researchflow.infrastructure.storage.session_repository import SessionRepository
+    async with AsyncExitStack() as stack:
+        db = database or Database(settings.database_url)
+        if database is None:
+            stack.push_async_callback(db.close)
+        client = await stack.enter_async_context(httpx.AsyncClient(timeout=60,trust_env=False))
+        research = ResearchRepository(db)
+        blobs = BlobStore(settings.blob_root)
+        retriever = PostgresRetriever(db)
+        yield APIResources(db,research,RunRepository(db,research),retriever,SessionRepository(db),blobs,IngestSource(research,blobs,DocumentParser(),SourceFetcher()),client)

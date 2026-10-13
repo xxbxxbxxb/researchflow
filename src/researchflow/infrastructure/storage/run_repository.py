@@ -12,9 +12,10 @@ from researchflow.domain.runs import RunHandle, RunRecord, RunState, StepOutput,
 from researchflow.domain.errors import ProjectBoundaryError
 from researchflow.infrastructure.storage.codec import decode_dataclass, jsonable
 from researchflow.infrastructure.storage.database import Database
-from researchflow.infrastructure.storage.models import RunRow, StepRow, EventRow, TaskRow, ClaimRow, SnapshotRow
+from researchflow.infrastructure.storage.models import RunRow, StepRow, EventRow, TaskRow, ClaimRow, SnapshotRow, ProjectRow, IdempotencyRow, ReviewRow
 from researchflow.infrastructure.storage.repositories import ResearchRepository
-from researchflow.ports.runtime import RunOwnershipLostError, RunCancelledError
+from researchflow.ports.runtime import RunOwnershipLostError, RunCancelledError, InputVersionMismatchError
+from researchflow.domain.runs import ReviewDecision
 
 
 class RunRepository:
@@ -33,31 +34,35 @@ class RunRepository:
         session.add(EventRow(project_id=row.project_id,run_id=row.run_id,kind=kind,data=data or {},created_at=now))
 
     async def enqueue(self, task_id: str, project_id: str, input_version: str, input_manifest: dict[str,Any] | None = None) -> RunRecord:
+        async with self.database.session.begin() as session:
+            return await self.enqueue_in(session,task_id,project_id,input_version,input_manifest)
+
+    async def enqueue_in(self, session: AsyncSession, task_id: str, project_id: str, input_version: str, input_manifest: dict[str,Any] | None = None) -> RunRecord:
         if not input_version.strip():
             raise ValueError('input version is required')
-        async with self.database.session.begin() as session:
-            task = await session.get(TaskRow,(project_id,task_id))
-            if task is None:
-                raise ProjectBoundaryError('task does not belong to project')
-            sources = []
-            source_ids = task.source_ids or list((await session.scalars(select(SnapshotRow.snapshot_id).where(SnapshotRow.project_id==project_id).order_by(SnapshotRow.snapshot_id))).all())
-            for sid in source_ids:
-                snapshot = await self.research.snapshot_in(session,project_id,sid)
-                if snapshot is None:
-                    raise ValueError('saved task source is missing')
-                sources.append({'snapshot_id':sid,'content_hash':snapshot.content_hash,'parser_version':snapshot.parser_version})
-            manifest = json.loads(json.dumps(input_manifest or {},allow_nan=False))
-            manifest.update(sources=sources,question=task.question,source_ids=list(source_ids),parser_versions=sorted({s['parser_version'] for s in sources}))
-            manifest.setdefault('workflow_version','fixed-v1')
-            manifest.setdefault('prompt_version',CLAIM_PROMPT_VERSION)
-            manifest.setdefault('model_version','unconfigured')
-            manifest.setdefault('execution_mode','live')
-            now = await self.now(session)
-            row = RunRow(project_id=project_id,task_id=task_id,run_id=uuid4().hex,state='queued',epoch=0,owner_id=None,lease_until=None,cancel_requested=False,input_version=input_version,input_manifest=manifest,created_at=now,updated_at=now)
-            session.add(row)
-            await session.flush()
-            self.event(session,row,'queued',now)
-            return self.record(row)
+        task = await session.get(TaskRow,(project_id,task_id))
+        if task is None:
+            raise ProjectBoundaryError('task does not belong to project')
+        sources = []
+        source_ids = task.source_ids or list((await session.scalars(select(SnapshotRow.snapshot_id).where(SnapshotRow.project_id==project_id).order_by(SnapshotRow.snapshot_id))).all())
+        for sid in source_ids:
+            snapshot = await self.research.snapshot_in(session,project_id,sid)
+            if snapshot is None:
+                raise ValueError('saved task source is missing')
+            sources.append({'snapshot_id':sid,'content_hash':snapshot.content_hash,'parser_version':snapshot.parser_version})
+        manifest = json.loads(json.dumps(input_manifest or {},allow_nan=False))
+        manifest.update(sources=sources,question=task.question,source_ids=list(source_ids),parser_versions=sorted({s['parser_version'] for s in sources}))
+        manifest.setdefault('workflow_version','fixed-v1')
+        manifest.setdefault('prompt_version',CLAIM_PROMPT_VERSION)
+        manifest.setdefault('model_version','unconfigured')
+        manifest.setdefault('execution_mode','live')
+        now = await self.now(session)
+        row = RunRow(project_id=project_id,task_id=task_id,run_id=uuid4().hex,state='queued',epoch=0,owner_id=None,lease_until=None,cancel_requested=False,input_version=input_version,input_manifest=manifest,created_at=now,updated_at=now)
+        session.add(row)
+        await session.flush()
+        self.event(session,row,'queued',now)
+        return self.record(row)
+
 
     async def claim_next(self, owner_id: str) -> RunHandle | None:
         if not owner_id.strip():
@@ -71,6 +76,24 @@ class RunRepository:
             row.lease_until = now + timedelta(seconds=self.lease_seconds)
             self.event(session,row,'claimed',now,{'epoch':row.epoch})
             return RunHandle(row.run_id,row.project_id,row.task_id,row.epoch,owner_id)
+
+    async def enqueue_idempotent(self, task_id: str, project_id: str, input_version: str, manifest: dict[str,Any], key: str, payload_hash: str) -> RunRecord:
+        if not key.strip() or len(key)>200:
+            raise ValueError('idempotency key is required and must be at most 200 characters')
+        async with self.database.session.begin() as session:
+            project = (await session.scalars(select(ProjectRow).where(ProjectRow.project_id==project_id).with_for_update())).one_or_none()
+            if project is None:
+                raise ProjectBoundaryError('project does not exist')
+            old = await session.get(IdempotencyRow,(project_id,key))
+            if old:
+                if old.payload_hash != payload_hash:
+                    raise ValueError('idempotency_conflict')
+                row = await session.get(RunRow,(project_id,old.run_id))
+                assert row is not None
+                return self.record(row)
+            record = await self.enqueue_in(session,task_id,project_id,input_version,manifest)
+            session.add(IdempotencyRow(project_id=project_id,request_key=key,payload_hash=payload_hash,run_id=record.run_id))
+            return record
 
     async def fence(self, session: AsyncSession, handle: RunHandle, allow_cancel: bool = False) -> RunRow:
         row = (await session.scalars(select(RunRow).where(RunRow.project_id==handle.project_id,RunRow.run_id==handle.run_id).with_for_update())).one_or_none()
@@ -177,3 +200,35 @@ class RunRepository:
         async with self.database.session() as session:
             rows = (await session.scalars(select(EventRow).where(EventRow.project_id==project_id,EventRow.run_id==run_id,EventRow.event_id>after_id).order_by(EventRow.event_id).limit(100))).all()
             return tuple({'event_id':r.event_id,'run_id':r.run_id,'kind':r.kind,'data':r.data,'created_at':r.created_at.isoformat()} for r in rows)
+
+    async def resume(self, project_id: str, run_id: str, input_version: str) -> RunRecord:
+        async with self.database.session.begin() as session:
+            row = (await session.scalars(select(RunRow).where(RunRow.project_id==project_id,RunRow.run_id==run_id).with_for_update())).one_or_none()
+            if row is None:
+                raise ValueError('run not found')
+            if row.input_version != input_version:
+                raise InputVersionMismatchError('run input version changed; create a new run')
+            if row.state != 'interrupted' or row.cancel_requested:
+                raise ValueError('run cannot be resumed from its current state')
+            now = await self.now(session)
+            row.state,row.owner_id,row.lease_until,row.updated_at = 'queued',None,None,now
+            self.event(session,row,'resumed',now)
+            return self.record(row)
+
+    async def review(self, project_id: str, run_id: str, decision: ReviewDecision) -> RunRecord:
+        async with self.database.session.begin() as session:
+            row = (await session.scalars(select(RunRow).where(RunRow.project_id==project_id,RunRow.run_id==run_id).with_for_update())).one_or_none()
+            if row is None or row.state != 'awaiting_review' or row.cancel_requested:
+                raise ValueError('run is not awaiting review')
+            now = await self.now(session)
+            session.add(ReviewRow(project_id=project_id,run_id=run_id,decision=jsonable(decision),created_at=now))
+            row.state = 'queued' if decision.action=='approve' else 'cancelled'
+            row.cancel_requested = decision.action=='reject'
+            row.updated_at = now
+            self.event(session,row,'reviewed',now,{'action':decision.action,'actor_id':decision.actor_id})
+            return self.record(row)
+
+    async def get_review(self, project_id: str, run_id: str) -> ReviewDecision | None:
+        async with self.database.session() as session:
+            row = await session.get(ReviewRow,(project_id,run_id))
+            return decode_dataclass(ReviewDecision,row.decision) if row else None

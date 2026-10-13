@@ -33,7 +33,7 @@ class ReportBuilder:
             lines += ['证据不足：当前材料没有形成可确认支持的结论。','']
         for cid in supported:
             c,v = claims[cid],verdicts[cid]
-            citations = ' '.join(f'[{aliases[eid]}](/api/evidence/{quote(eid,safe="")})' for eid in v.accepted_evidence_ids)
+            citations = ' '.join(f'[{aliases[eid]}](/api/evidence/{quote(eid,safe="")}?project_id={quote(data.project_id,safe="")})' for eid in v.accepted_evidence_ids)
             lines += [f'- {markdown_text(c.text)} {citations}']
         lines += ['','## 相反证据与待核实事项','']
         labels = {'contradicted':'相反证据','insufficient':'材料不足','inconclusive':'验证受限'}
@@ -44,5 +44,5 @@ class ReportBuilder:
         lines += ['','## 参考来源','']
         for eid in used:
             item = evidence[eid]
-            lines += [f'- [{aliases[eid]}](/api/evidence/{quote(eid,safe="")}) {markdown_text(item.evidence.source)}，{markdown_text(item.evidence.locator)}']
+            lines += [f'- [{aliases[eid]}](/api/evidence/{quote(eid,safe="")}?project_id={quote(data.project_id,safe="")}) {markdown_text(item.evidence.source)}，{markdown_text(item.evidence.locator)}']
         return ReportVersion(uuid4().hex,data.project_id,data.task_id,data.run_id,1,'\n'.join(lines),supported,other,used,data.execution_mode,datetime.now(UTC),data.retrieval_mode)

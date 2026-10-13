@@ -18,6 +18,21 @@ from researchflow.infrastructure.storage.codec import jsonable
 
 
 async def run(args):
+    if args.command == 'hash-password':
+        from getpass import getpass
+        from argon2 import PasswordHasher
+        password = await asyncio.to_thread(getpass,'New ResearchFlow password: ')
+        if len(password)<12:
+            raise ValueError('Use a password with at least 12 characters.')
+        return {'password_hash':await asyncio.to_thread(PasswordHasher().hash,password)},0
+    if args.command == 'serve':
+        import uvicorn
+        from researchflow.settings import Settings
+        from researchflow.api.app import create_app
+        settings = Settings.from_env()
+        settings.validate_binding(args.host)
+        await uvicorn.Server(uvicorn.Config(create_app(settings),host=args.host,port=args.port,proxy_headers=False)).serve()
+        return {'stopped':True},0
     if args.command == 'worker':
         from researchflow.composition import worker_resources
         async with worker_resources(args.mode) as worker:
@@ -65,6 +80,12 @@ def main() -> int:
     worker.add_argument('--once',action='store_true')
     worker.add_argument('--mode',choices=['live','demo'],default='live')
     worker.set_defaults(format='json')
+    server = commands.add_parser('serve',help='Start the authenticated ResearchFlow API')
+    server.add_argument('--host',default='127.0.0.1')
+    server.add_argument('--port',type=int,default=8000)
+    server.set_defaults(format='json')
+    password = commands.add_parser('hash-password',help='Generate an Argon2id hash interactively')
+    password.set_defaults(format='json')
     args = parser.parse_args()
     try:
         result,code = asyncio.run(run(args))

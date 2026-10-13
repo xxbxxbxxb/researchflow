@@ -157,3 +157,37 @@ class EventRow(Base):
     data: Mapped[dict[str,Any]] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     __table_args__ = (ForeignKeyConstraint(['project_id','run_id'],['workflow_runs.project_id','workflow_runs.run_id']),)
+
+
+class SessionRow(Base):
+    __tablename__ = 'auth_sessions'
+    token_hash: Mapped[str] = mapped_column(String(64),primary_key=True)
+    actor_id: Mapped[str] = mapped_column(String(200))
+    csrf_hash: Mapped[str] = mapped_column(String(64))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class LoginGuardRow(Base):
+    __tablename__ = 'login_guards'
+    source_key: Mapped[str] = mapped_column(String(64),primary_key=True)
+    window_started: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    failures: Mapped[int] = mapped_column(Integer,default=0)
+    pending: Mapped[int] = mapped_column(Integer,default=0)
+
+
+class IdempotencyRow(Base):
+    __tablename__ = 'run_idempotency'
+    project_id: Mapped[str] = mapped_column(String(200),primary_key=True)
+    request_key: Mapped[str] = mapped_column(String(200),primary_key=True)
+    payload_hash: Mapped[str] = mapped_column(String(64))
+    run_id: Mapped[str] = mapped_column(String(200))
+    __table_args__ = (ForeignKeyConstraint(['project_id','run_id'],['workflow_runs.project_id','workflow_runs.run_id']),)
+
+
+class ReviewRow(Base):
+    __tablename__ = 'review_decisions'
+    project_id: Mapped[str] = mapped_column(String(200),primary_key=True)
+    run_id: Mapped[str] = mapped_column(String(200),primary_key=True)
+    decision: Mapped[dict[str,Any]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (ForeignKeyConstraint(['project_id','run_id'],['workflow_runs.project_id','workflow_runs.run_id']),)
