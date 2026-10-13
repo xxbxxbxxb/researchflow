@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import JSON, DateTime, ForeignKey, ForeignKeyConstraint, Integer, String, Text, func, Boolean, BigInteger, Identity
+from sqlalchemy import JSON, DateTime, ForeignKey, ForeignKeyConstraint, Integer, String, Text, func, Boolean, BigInteger, Identity, Float
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -213,3 +213,47 @@ class FollowUpRow(Base):
     started_run_id: Mapped[str | None] = mapped_column(String(200),nullable=True)
     data: Mapped[dict[str,Any]] = mapped_column(JSON)
     __table_args__ = (ForeignKeyConstraint(['project_id','parent_task_id'],['research_tasks.project_id','research_tasks.task_id']),ForeignKeyConstraint(['project_id','started_run_id'],['workflow_runs.project_id','workflow_runs.run_id']))
+
+
+class BudgetRow(Base):
+    __tablename__ = 'run_budgets'
+    project_id: Mapped[str] = mapped_column(String(200),primary_key=True)
+    run_id: Mapped[str] = mapped_column(String(200),primary_key=True)
+    limits: Mapped[dict[str,Any]] = mapped_column(JSON)
+    model_calls_used: Mapped[int] = mapped_column(Integer,default=0)
+    tool_calls_used: Mapped[int] = mapped_column(Integer,default=0)
+    steps_used: Mapped[int] = mapped_column(Integer,default=0)
+    active_elapsed_seconds: Mapped[float] = mapped_column(Float,default=0.0)
+    active_updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    active_epoch: Mapped[int] = mapped_column(Integer)
+    active: Mapped[bool] = mapped_column(Boolean,default=True)
+    __table_args__ = (ForeignKeyConstraint(['project_id','run_id'],['workflow_runs.project_id','workflow_runs.run_id']),)
+
+
+class UsageRow(Base):
+    __tablename__ = 'model_usage'
+    project_id: Mapped[str] = mapped_column(String(200),primary_key=True)
+    run_id: Mapped[str] = mapped_column(String(200),primary_key=True)
+    attempt_id: Mapped[str] = mapped_column(String(200),primary_key=True)
+    epoch: Mapped[int] = mapped_column(Integer)
+    operation: Mapped[str] = mapped_column(String(100))
+    model: Mapped[str] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(String(40))
+    input_tokens: Mapped[int | None] = mapped_column(BigInteger,nullable=True)
+    output_tokens: Mapped[int | None] = mapped_column(BigInteger,nullable=True)
+    estimated_cost: Mapped[float | None] = mapped_column(Float,nullable=True)
+    price_version: Mapped[str | None] = mapped_column(String(200),nullable=True)
+    request_id: Mapped[str | None] = mapped_column(String(200),nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True),nullable=True)
+    __table_args__ = (ForeignKeyConstraint(['project_id','run_id'],['workflow_runs.project_id','workflow_runs.run_id']),)
+
+
+class OperationSlotRow(Base):
+    __tablename__ = 'operation_slots'
+    project_id: Mapped[str] = mapped_column(String(200),primary_key=True)
+    run_id: Mapped[str] = mapped_column(String(200),primary_key=True)
+    operation_id: Mapped[str] = mapped_column(String(200),primary_key=True)
+    epoch: Mapped[int] = mapped_column(Integer)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (ForeignKeyConstraint(['project_id','run_id'],['workflow_runs.project_id','workflow_runs.run_id']),)
