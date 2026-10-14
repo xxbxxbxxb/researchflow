@@ -61,14 +61,15 @@ class ConfiguredWorkflow:
         self.runtimes[key]=runtime
         try:
             await runtime.tick(handle)
-            retriever=self.retriever
+            # Demo is offline even in a Worker configured for live chat/embeddings.
+            retriever=PostgresRetriever(self.runs.database) if mode=='demo' else self.retriever
             if mode=='live' and self.retriever.embeddings:
                 from researchflow.runtime.embedding_runtime import BudgetedEmbeddings
                 retriever=PostgresRetriever(self.runs.database,BudgetedEmbeddings(self.retriever.embeddings,store,handle,context,self.trace))
             from researchflow.runtime.graph_workflow import GraphWorkflow
             driver=GraphWorkflow if record.input_manifest['workflow_version']=='graph-v1' else FixedWorkflow
             collector=None
-            if record.input_manifest.get('collect_sources'):
+            if mode=='live' and record.input_manifest.get('collect_sources'):
                 from pathlib import Path
 
                 from researchflow.application.ingestion import IngestSource

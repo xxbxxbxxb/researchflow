@@ -1,4 +1,5 @@
 from dataclasses import asdict
+from json import dumps
 from typing import Literal, cast
 
 from researchflow.application.claims import ClaimExtractor
@@ -66,12 +67,16 @@ class FixedWorkflow:
                     if entry.status!='active':
                         continue
                     context=await self.knowledge.verification_context(handle.project_id,entry.verification_id)
-                    if not any(e.anchor.snapshot_id in collect_ids for e in context.result.evidences):
+                    accepted=set(context.verification.accepted_evidence_ids)
+                    evidence=tuple(e for e in context.result.evidences if e.evidence.evidence_id in accepted)
+                    if not evidence or len(evidence)!=len(accepted) or any(e.anchor.snapshot_id not in collect_ids for e in evidence):
                         continue
-                    if characters+len(context.claim.text)>4000:
+                    item={'knowledge_id':entry.knowledge_id,'text':context.claim.text,'qualifiers':list(context.claim.qualifiers),'status':entry.status,'verification_id':entry.verification_id,'report_id':entry.report_id,'verification_status':context.verification.status,'rationale':context.verification.rationale,'accepted_evidence_ids':list(context.verification.accepted_evidence_ids),'evidence':[{'evidence_id':e.evidence.evidence_id,**asdict(e.anchor),'quote':e.evidence.text,'quote_hash':e.quote_hash} for e in evidence]}
+                    size=len(dumps(item,ensure_ascii=False,sort_keys=True))
+                    if characters+size>4000:
                         continue
-                    selected.append({'knowledge_id':entry.knowledge_id,'text':context.claim.text,'status':entry.status,'verification_id':entry.verification_id,'report_id':entry.report_id})
-                    characters+=len(context.claim.text)
+                    selected.append(item)
+                    characters+=size
                 output=StepOutput(data={**output.data,'project_knowledge':selected})
         elif phase == 'retrieve':
             source_ids = tuple(outputs['collect'].data['source_ids'])

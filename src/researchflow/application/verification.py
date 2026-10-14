@@ -10,7 +10,7 @@ from researchflow.domain.errors import ProjectBoundaryError
 from researchflow.domain.sources import AnchoredEvidence, SourceSnapshot
 from researchflow.ports.model import ChatMessage, ChatModelPort, ChatRequest, ModelCallError
 
-VERIFIER_VERSION = 'verify-v1'
+VERIFIER_VERSION = 'verify-v2'
 
 
 def judgment(claim: Claim, status: VerificationStatus, refs: tuple[str, ...], rationale: str, checks: tuple[str, ...], model: str = '') -> Verification:

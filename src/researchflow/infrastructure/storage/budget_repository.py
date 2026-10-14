@@ -25,11 +25,14 @@ class BudgetRepository:
             setattr(row,name,getattr(value,name))
 
     async def row_in(self, session: AsyncSession, handle: RunHandle) -> BudgetRow:
-        await self.runs.fence(session,handle)
+        run=await self.runs.fence(session,handle)
         row=(await session.scalars(select(BudgetRow).where(BudgetRow.project_id==handle.project_id,BudgetRow.run_id==handle.run_id).with_for_update())).one_or_none()
         if row is None:
             now=await self.runs.now(session)
-            row=BudgetRow(project_id=handle.project_id,run_id=handle.run_id,limits=jsonable(self.limits),model_calls_used=0,tool_calls_used=0,steps_used=0,active_elapsed_seconds=0.0,active_updated_at=now,active_epoch=handle.epoch,active=True)
+            # The immutable manifest wins regardless of which process creates the row.
+            # Older internal callers without a manifest retain their explicit limits.
+            limits=RunLimits(**run.input_manifest['limits']) if 'limits' in run.input_manifest else self.limits
+            row=BudgetRow(project_id=handle.project_id,run_id=handle.run_id,limits=jsonable(limits),model_calls_used=0,tool_calls_used=0,steps_used=0,active_elapsed_seconds=0.0,active_updated_at=now,active_epoch=handle.epoch,active=True)
             session.add(row)
             await session.flush()
         return row
