@@ -2,17 +2,22 @@ import { test, expect } from '@playwright/test';
 import { login, createProject, uploadPDF, startResearch } from './helpers';
 
 test('PDF evidence closes the project, research, knowledge and follow-up path', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await login(page);
   const project = await createProject(page);
   await uploadPDF(page);
+  await page.screenshot({ path: '../artifacts/qa-project.png', fullPage: true, animations: 'disabled' });
   await startResearch(page);
   await expect(page.getByText('研究已完成', { exact: true })).toBeVisible();
+  await page.screenshot({ path: '../artifacts/qa-task.png', fullPage: true, animations: 'disabled' });
   await page.getByRole('link', { name: '查看报告' }).first().click();
   await expect(page.getByText('固定演示', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('材料支持', { exact: true }).first()).toBeVisible();
+  await page.screenshot({ path: '../artifacts/qa-report.png', fullPage: true, animations: 'disabled' });
   await page.getByRole('button', { name: '查看原文' }).first().click();
   await expect(page.getByTestId('evidence-drawer')).toBeVisible();
   await expect(page.getByTestId('evidence-quote')).toContainText('sample size of 12');
+  await page.screenshot({ path: '../artifacts/qa-evidence.png', animations: 'disabled' });
   await page.getByRole('button', { name: '关闭原文' }).click();
   await page.getByRole('button', { name: '接受为项目知识' }).first().click();
   await expect(page.getByText('已保存为项目知识')).toBeVisible();
@@ -22,6 +27,7 @@ test('PDF evidence closes the project, research, knowledge and follow-up path', 
   await page.goto(`/projects/${project}?tab=knowledge`);
   await expect(page.getByText('What experimental condition limits this conclusion?')).toBeVisible();
   await expect(page.getByRole('button', { name: '启动后续研究' })).toBeVisible();
+  await page.screenshot({ path: '../artifacts/qa-knowledge.png', fullPage: true, animations: 'disabled' });
   await page.getByRole('button', { name: '启动后续研究' }).click();
   await expect(page.getByText('研究已完成', { exact: true })).toBeVisible();
   const drafts = await (await page.request.get(`/api/projects/${project}/follow-ups`)).json();
