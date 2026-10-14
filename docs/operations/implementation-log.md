@@ -9,7 +9,7 @@ The user approved Native: main agent implements all tasks continuously; one fres
 
 ## Verified tasks
 
-Tasks 1–19 are implemented; Task 20 is completing its final review and verification gate.
+Tasks 1–20 are implemented and the full engineering gate has passed; live model quality remains not_run.
 The original 58 tests passed before changes. Real database tests use PostgreSQL 16.15 and pgvector in GitHub Actions; local skips are never counted as database verification.
 
 | Task | Verification evidence |
@@ -70,3 +70,12 @@ Final: minor (deferred): empty/unfinished tool streams can complete an unverifie
 Final: minor (deferred): redirected imports keep final URL but do not persist the originally submitted URL; saved final-source bytes and anchors remain intact.
 Final: Ruling: retain live precision, embedding relevance and arXiv connectivity as not_run — no configured live experiment was executed — cost if wrong: engineering checks cannot predict real provider quality or connectivity.
 Final: Ruling: fresh-install success is not inferred from source review — run isolated wheel installation and actual Compose build/restart — cost if wrong: an untested installation environment may still differ.
+
+## Final gate
+CI38489988870 passed all seven jobs for76537ca:four Ubuntu/Windows Python3.11/3.12 core jobs;229 actual PostgreSQL/backend tests;5 actual Chromium scenarios;actual Compose build/restart;aggregated A01–A16 allpassed. The four Important findings were fixed in one pass with executed RED→GREEN evidence. No re-review is substituted for the regression suite. Mobile browser screenshot was inspected; no clipping or overlap in the anchored Evidence drawer.
+Final: fixed unit/condition bypass — five forced-supported cases RED→GREEN, suite229/229.
+Final: fixed demo live embedding leak — existing-vector forbidden-provider test RED→GREEN, suite229/229.
+Final: fixed preview-first limit replacement — both creator orders tested, preview-first RED→GREEN, suite229/229.
+Final: fixed knowledge polarity/scope loss — actual collect→claim payload and unrelated report-evidence tests RED→GREEN, suite229/229.
+All tasks1–20 complete. Native184 passed/45 skipped is reported separately; its engineering manifest isblocked without PostgreSQL, never promoted to a full pass. Locked-wheel install and12 packaged contract cases actually completed outside the repository. Live remainsnot_run. Final user-facing evidence, rulings and deferred minors are inrelease-2026-10-14.md.
+Final: Ruling: use one multi-stage Dockerfile for the Web bundle and Python/API/Worker image instead of a separate web/Dockerfile — same-origin authenticated serving and one locked build satisfy the spec — cost if wrong: Web cannot be deployed independently without rebuilding that image.

@@ -1,0 +1,77 @@
+{
+  "status": "passed",
+  "revision": "76537ca192e3a3dffa2a8d289de0d0dc1eb3a3ae",
+  "created_at": "2026-10-14T00:26:34.256264+00:00",
+  "python": "3.12.15",
+  "checks": {},
+  "scenarios": {
+    "A01": {
+      "status": "passed",
+      "report": "/home/runner/work/researchflow/researchflow/artifacts/python.xml"
+    },
+    "A02": {
+      "status": "passed",
+      "report": "/home/runner/work/researchflow/researchflow/artifacts/python.xml"
+    },
+    "A03": {
+      "status": "passed",
+      "report": "/home/runner/work/researchflow/researchflow/artifacts/python.xml"
+    },
+    "A04": {
+      "status": "passed",
+      "report": "/home/runner/work/researchflow/researchflow/artifacts/python.xml"
+    },
+    "A05": {
+      "status": "passed",
+      "report": "/home/runner/work/researchflow/researchflow/artifacts/python.xml"
+    },
+    "A06": {
+      "status": "passed",
+      "report": "/home/runner/work/researchflow/researchflow/artifacts/python.xml"
+    },
+    "A07": {
+      "status": "passed",
+      "report": "/home/runner/work/researchflow/researchflow/artifacts/python.xml"
+    },
+    "A08": {
+      "status": "passed",
+      "report": "/home/runner/work/researchflow/researchflow/artifacts/python.xml"
+    },
+    "A09": {
+      "status": "passed",
+      "report": "/home/runner/work/researchflow/researchflow/artifacts/python.xml"
+    },
+    "A10": {
+      "status": "passed",
+      "report": "/home/runner/work/researchflow/researchflow/artifacts/python.xml"
+    },
+    "A11": {
+      "status": "passed",
+      "report": "/home/runner/work/researchflow/researchflow/artifacts/python.xml"
+    },
+    "A12": {
+      "status": "passed",
+      "report": "/home/runner/work/researchflow/researchflow/artifacts/python.xml"
+    },
+    "A13": {
+      "status": "passed",
+      "report": "/home/runner/work/researchflow/researchflow/artifacts/python.xml"
+    },
+    "A14": {
+      "status": "passed",
+      "report": "/home/runner/work/researchflow/researchflow/artifacts/python.xml"
+    },
+    "A15": {
+      "status": "passed",
+      "report": "/home/runner/work/researchflow/researchflow/artifacts/python.xml"
+    },
+    "A16": {
+      "status": "passed",
+      "report": "/home/runner/work/researchflow/researchflow/artifacts/python.xml"
+    }
+  },
+  "live_quality": {
+    "status": "not_run",
+    "reason": "separate_live_evaluation_required"
+  }
+}
