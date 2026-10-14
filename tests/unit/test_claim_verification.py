@@ -101,3 +101,38 @@ async def test_contradiction_is_retained_with_original_evidence():
     result=(await verifier(Judge('contradicted')).verify((claim,),(evidence,opposite),(snapshot,opposite_snapshot)))[0]
     assert result.status == 'contradicted'
     assert result.accepted_evidence_ids == ('e1','e2')
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('claim_text,source_text,issue',[
+    ('The treatment improved survival by 20% only in mice at 5 g/kg.',
+     'The treatment improved survival by 20% only in mice at 5 mg/kg.', 'unit_binding_mismatch'),
+    ('The treatment improved survival by 20% at 5 mg/kg.',
+     'The treatment improved survival by 20% only in mice at 5 mg/kg.', 'experimental_condition_missing'),
+    ('The treatment improved survival by 20% only in humans at 5 mg/kg.',
+     'The treatment improved survival by 20% only in mice at 5 mg/kg.', 'experimental_condition_missing'),
+    ('治疗使存活率提高20%，剂量为5 mg/kg。',
+     '治疗仅在小鼠实验中使存活率提高20%，剂量为5 mg/kg。', 'experimental_condition_missing'),
+    ('Survival improved at 5 mg/kg and exposure lasted 10 ms.',
+     'Survival improved at 10 mg/kg and exposure lasted 5 ms.', 'unit_binding_mismatch'),
+])
+async def test_forced_supported_cannot_publish_changed_units_or_dropped_conditions(claim_text,source_text,issue):
+    # Break caught: accepting the provider verdict while checking only bare numbers.
+    from researchflow.application.reports import ReportBuilder
+    from researchflow.domain.reports import ReportInputs
+    claim,evidence,snapshot=fixture(claim_text,source_text)
+    verdict=(await verifier(Judge()).verify((claim,),(evidence,),(snapshot,)))[0]
+    assert verdict.status == 'inconclusive'
+    assert verdict.accepted_evidence_ids == ()
+    assert issue in verdict.checks
+    report=ReportBuilder().build(ReportInputs('p','t1','run',(claim,),(verdict,),(evidence,),()))
+    assert report.conclusion_claim_ids == ()
+
+
+@pytest.mark.asyncio
+async def test_preserved_unit_and_experimental_condition_do_not_block_supported_judgment():
+    text='The treatment improved survival by 20% only in mice at 5 mg/kg.'
+    claim,evidence,snapshot=fixture(text,text)
+    verdict=(await verifier(Judge()).verify((claim,),(evidence,),(snapshot,)))[0]
+    assert verdict.status == 'supported'
+    assert verdict.accepted_evidence_ids == ('e1',)

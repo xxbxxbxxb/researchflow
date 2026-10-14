@@ -296,6 +296,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/runs/{run_id}/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Run Metrics */
+        get: operations["run_metrics_api_runs__run_id__metrics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/reports": {
         parameters: {
             query?: never;
@@ -541,6 +558,39 @@ export interface components {
              */
             preview_enabled: boolean;
         };
+        /** BudgetInput */
+        BudgetInput: {
+            /**
+             * Max Steps
+             * @default 12
+             */
+            max_steps: number;
+            /**
+             * Max Tool Calls
+             * @default 20
+             */
+            max_tool_calls: number;
+            /**
+             * Max Model Calls
+             * @default 16
+             */
+            max_model_calls: number;
+            /**
+             * Max Concurrency
+             * @default 4
+             */
+            max_concurrency: number;
+            /**
+             * Active Timeout Seconds
+             * @default 300
+             */
+            active_timeout_seconds: number;
+            /**
+             * Operation Timeout Seconds
+             * @default 60
+             */
+            operation_timeout_seconds: number;
+        };
         /** Claim */
         Claim: {
             /** Claim Id */
@@ -686,6 +736,13 @@ export interface components {
             status: "supported" | "contradicted" | "insufficient" | "inconclusive";
             /** Reason */
             reason: string;
+        };
+        /** PhaseMetric */
+        PhaseMetric: {
+            /** Step Id */
+            step_id: string;
+            /** Elapsed Since Previous Seconds */
+            elapsed_since_previous_seconds: number | null;
         };
         /** Project */
         Project: {
@@ -863,6 +920,27 @@ export interface components {
              */
             operation_timeout_seconds: number;
         };
+        /** RunMetricsResponse */
+        RunMetricsResponse: {
+            /** Phases */
+            phases: components["schemas"]["PhaseMetric"][];
+            /** Model Attempts */
+            model_attempts: number;
+            /** Retries */
+            retries: number;
+            /** Recoveries */
+            recoveries: number;
+            /** Usage Known */
+            usage_known: boolean;
+            /** Estimated Cost */
+            estimated_cost: number | null;
+            /** Verification Distribution */
+            verification_distribution: {
+                [key: string]: number;
+            };
+            /** Citation Coverage */
+            citation_coverage: number | null;
+        };
         /** RunRecord */
         RunRecord: {
             /** Run Id */
@@ -920,6 +998,7 @@ export interface components {
              * @default false
              */
             collect_sources: boolean;
+            limits?: components["schemas"]["BudgetInput"] | null;
             /**
              * Require Review
              * @default false
@@ -1646,6 +1725,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_metrics_api_runs__run_id__metrics_get: {
+        parameters: {
+            query: {
+                project_id: string;
+            };
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunMetricsResponse"];
                 };
             };
             /** @description Validation Error */

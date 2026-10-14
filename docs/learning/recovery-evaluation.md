@@ -1,13 +1,13 @@
-# 恢复与评测
+# 恢复与评测各自保证什么
 
-LangGraph恢复工作流状态，StepReceipt保护业务提交。业务已经提交、checkpoint尚未保存的窗口，靠重入节点查凭据来恢复。
+LangGraph恢复的是工作流状态，StepReceipt保护的是业务提交。二者分别持久化，恰好会有“业务提交成功，checkpoint尚未保存”的窗口。重入节点先查凭据，返回已有业务结果，才能让这一窗口可恢复。
 
-旧请求会在新Worker接管后返回，所以取消之外还要在同一事务检查owner、epoch、lease和cancel。模型调用可能重复收费，checkpoint不能保证远端exactly-once。
+Worker的旧请求可能在新Worker接管后返回。单靠取消旧协程不能保证远端停止，因此每次数据库写入还要检查owner、epoch、lease和cancel。检查与写入必须在同一个事务，先检查后另开事务会留下竞态。模型调用本身仍可能重复收费，不能用 checkpoint宣称外部 exactly-once。
 
-工程测试使用固定输出和故障点验证机制，质量评测用有来源的gold测真实判断。固定Provider预放答案，能测流程，不能测模型能力。
+工程测试使用可复现模型输出和故障点，验证原子性、权限、重试和恢复机制。质量评测使用有来源的 gold标签，测试真实模型能否判断证据关系。固定演示把答案预先放在provider里，能够验证流程，却无法测量模型能力。
 
-支持精确率=正确supported/全部supported，假支持不能从分母删除。没有supported预测时精确率未知；failed和inconclusive留在固定分母与误例中。
+支持精确率等于正确的 supported预测数除以全部 supported预测数；把反驳或不足误标支持必须进入分母。没有任何 supported预测时，精确率是未知，不是100%。失败和inconclusive也不能从总体完成率与错误分析中删除。
 
-开发集改策略，冻结后检验保留集，记录数据、源码、Prompt和模型版本。简历应说明真实故障/误判、工程取舍和独立验证证据。
+先使用开发集改策略，再冻结策略、检查保留集。每次修改都记录源码、Prompt、模型和数据哈希。真正值得写进简历的，是你发现了哪个误判或故障、采用什么取舍，以及独立数据或真实重启怎样证明了改进。
 
-参考LangGraph状态、LiteLLM治理、Temporal副作用边界、Agents SDK授权、OTel父子Span、DSPy指标驱动思想；只实现当前项目需要的机制。
+参考思想：LangGraph的状态与checkpoint，LiteLLM的调用治理，Temporal的恢复/副作用边界，OpenAI Agents SDK的工具授权，OpenTelemetry的父子Span，DSPy的指标驱动优化。本项目实现了适合单人规模的对应机制，没有因此要求部署所有平台。

@@ -49,7 +49,8 @@ class ConfiguredWorkflow:
         if mode=='live' and isinstance(self.model,DemoCaseModel):
             raise InputVersionMismatchError('live provider is not configured for this Worker')
         if mode=='live' and getattr(self.model,'config',None) is not None:
-            if record.input_manifest['model_version']!=self.model.config.model or record.input_manifest.get('context_window')!=self.context_window:
+            actual=self.model.config.model
+            if record.input_manifest['model_version']!=actual or record.input_manifest.get('context_window')!=self.context_window:
                 raise InputVersionMismatchError('model or context policy changed; create a new run')
         model=DemoCaseModel(record.input_manifest.get('demo_case','supported')) if mode=='demo' else self.model
         from researchflow.domain.usage import RunLimits

@@ -9,7 +9,7 @@ The user approved Native: main agent implements all tasks continuously; one fres
 
 ## Verified tasks
 
-Tasks 1–12 implemented and verified. Task 13 is starting; Tasks 14–20 remain.
+Tasks 1–19 are implemented; Task 20 is completing its final review and verification gate.
 The original 58 tests passed before changes. Real database tests use PostgreSQL 16.15 and pgvector in GitHub Actions; local skips are never counted as database verification.
 
 | Task | Verification evidence |
@@ -46,14 +46,24 @@ Executor restored after Task 11. Pending local authored changes were backed up, 
 Task 12 complete: CI38403827137 passed168 Python tests and5 actual Chromium scenarios. npm ci, generated API contract drift check, TypeScript typecheck and production build passed. Desktop and390px screenshots were visually inspected. Actual browser tests covered PDF→research→report→anchored original→knowledge→explicit follow-up; invalid citation failure; double start/refresh idempotency; background Worker/SSE updates preserving an open evidence drawer and unsaved input; refresh preserving the original250px scroll; filter preservation on back navigation. The refreshed-scroll regression was observed RED in CI38402145622 and GREEN in CI38403298215. The stale task cache regression was observed in CI38399810187 and resolved before navigation. Native executor remains intermittently offline; authoritative code and actual verification are preserved in this branch.
 
 ## Continuation verification
-The native executor disconnected again (409 environment_offline) after the main implementation. Pending reversible changes are preserved through the authorized connector and verified by CI; no native command completion is inferred.
+The native executor disconnected again (409 environment_offline) after the main implementation. Pending reversible changes were preserved through the authorized connector and verified by CI; no native command completion was inferred.
 
 CI38426178282:204 actual PostgreSQL/backend tests and5 Chromium scenarios passed.
 CI38429275388:actual Compose build/restart passed with original Blob bytes, report, knowledge and9 checkpoints. Windows Unicode/autocrlf and overlapping runtime clock regressions were reproduced then fixed.
 CI38430638834:Ubuntu/Windows Python3.11/3.12 core checks all passed; real PostgreSQL213 tests passed and a newly introduced mixed-mode test failed before its fix.
+CI38435754957:all four core jobs passed;218 PostgreSQL/backend tests passed. API-generated TypeScript drift blocked Web/Compose; actual schema generation was restored when the native executor became available on2026-10-14.
 
-Subsequent local contracts: reviewed knowledge context, source policy guard, request-limit input and versioned pricing were observed RED then GREEN;178 core tests passed,40 database-dependent cases explicitly skipped locally. Full final CI and independent review are pending.
+Subsequent local contracts: reviewed knowledge context, source policy guard, request-limit input and versioned pricing were observed RED then GREEN;178 core tests passed,40 database-dependent cases explicitly skipped locally.
+Restored native verification:178 passed/40 skipped, Ruff and mypy passed, actual API type generation/typecheck/Web production build passed, and the wheel built successfully. Build emits a non-blocking bundle-size warning; none of these checks establish live model quality.
 
-Ruling: execute final reversible steps through the authorized connector while the native executor is offline. Cost if wrong: native wheel checks cannot be claimed; actual CI must supply verification.
-Ruling: fingerprint source and key dependencies conservatively. Cost if wrong: a compatible patch can require a new run; old reports remain available.
-Ruling: accumulate one locked DB active clock for overlapping Worker/preview runtimes, with per-operation monotonic deadlines. Cost if wrong: DB clock authority differs from a single-process counter, but avoids double charging concurrent active time.
+Ruling: execute final reversible steps through the authorized connector while the native executor is offline — maintain the approved scope and use real CI — cost if wrong: native wheel checks cannot be claimed until the environment returns; it has now returned and the wheel build was actually run.
+Ruling: fingerprint source and key dependencies conservatively — incompatible checkpoints must not silently resume — cost if wrong: a compatible patch can require a new run; old reports remain available.
+Ruling: accumulate one locked DB active clock for overlapping Worker/preview runtimes, with per-operation monotonic deadlines — avoid double charging active time — cost if wrong: DB clock authority differs from a single-process counter.
+
+## Independent whole-branch review
+Fresh reviewer inspected f0d2158 against baseline268160c and the approved spec/plan. No Critical finding; four Important findings enter one TDD fix pass: number-unit/condition checks, demo embedding isolation, manifest-authoritative budget initialization, and preserved knowledge judgment/provenance/scope. Reproductions were source-traced by the reviewer; root verification must supply executed RED→GREEN evidence.
+Unit/condition regression:five real forced-supported cases failed locally before implementation; unchanged correctly scoped case passed. Real PostgreSQL reproductions are committed before fixes and must fail in CI for the three persistence/composition findings.
+Final: minor (deferred): empty/unfinished tool streams can complete an unverified preview; preview defaults off, never becomes a verified report.
+Final: minor (deferred): redirected imports keep final URL but do not persist the originally submitted URL; saved final-source bytes and anchors remain intact.
+Final: Ruling: retain live precision, embedding relevance and arXiv connectivity as not_run — no configured live experiment was executed — cost if wrong: engineering checks cannot predict real provider quality or connectivity.
+Final: Ruling: fresh-install success is not inferred from source review — run isolated wheel installation and actual Compose build/restart — cost if wrong: an untested installation environment may still differ.

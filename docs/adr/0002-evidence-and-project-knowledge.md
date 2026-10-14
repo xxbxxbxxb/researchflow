@@ -1,9 +1,9 @@
 # Evidence and project knowledge
 
-Evidence binds an immutable quote to a saved canonical page. Same identity/content is idempotent; conflicting content is rejected; batches are atomic.
+Evidence is an immutable quote bound to a canonical source page, not a log message or a model memory. Same identity/same content is idempotent; a conflicting quote or offset is rejected, and batches are atomic.
 
-Claims preserve proposed citations. Verifications preserve accepted citations and four verdicts. Immutable report versions admit supported claims only. Human acceptance keeps original provenance; overrides and supersessions append history.
+Claims retain proposed citations. Verifications independently retain accepted citations and one of four verdicts. Reports retain immutable versions, with only supported claims admitted to conclusions. Human acceptance creates KnowledgeEntry with original provenance; override and supersede append history rather than rewrite it.
 
-Project knowledge enters later tasks as untrusted data within frozen source scope, never a system instruction or a shortcut around verification. Follow-ups remain drafts until the user starts them.
+Active project knowledge can assist a later task only as untrusted source data within the frozen project/source scope. It does not become a system instruction or skip verification. A follow-up is a draft until the user starts it.
 
-Trace records execution independently. Exporter loss cannot delete Evidence, and a trace cannot prove semantic support. The source/verification/report bundle remains authoritative.
+Trace is independent execution evidence. Losing an exporter cannot delete committed Evidence. Conversely, having a trace cannot prove a claim is supported. The database, source snapshot and verification bundle remain the authoritative business record.
