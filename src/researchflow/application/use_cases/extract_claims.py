@@ -1,5 +1,7 @@
 import json
-
+from researchflow.application.citation_alignment import (
+    require_citation_alignment,
+)
 from researchflow.application.use_cases.answer_research_task import (
     GroundedAnswer,
 )
@@ -190,6 +192,16 @@ class ExtractClaims:
                 evidence_ids.append(
                     alias_to_id[alias]
                 )
+            try:
+                require_citation_alignment(
+                    answer.text,
+                    claim_text,
+                    raw_aliases,
+                )
+            except ValueError as exc:
+                raise InvalidClaimExtractionError(
+                    str(exc)
+                ) from exc
 
             claims.append(
                 Claim(
